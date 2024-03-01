@@ -26,8 +26,9 @@ class ComplexUNet(nn.Module):
         self.upsamples = nn.ModuleList()
         self.decoders = nn.ModuleList()
         self.additional_conv = ConvSpec2D(filter_size, filter_size, 3, n_depth, activation, dp_rate, bias, batchnorm)
-        self.conv2d =Conv2D(filter_size, filter_size, n_depth, 3, activation, dp_rate, batchnorm, bias)  
+        self.conv2d =Conv2D(filter_size, filter_size, n_depth, 3, activation, dp_rate, bias,batchnorm)  
         self.final_conv = nn.Conv2d(filter_size, 1, kernel_size=3, padding=1, bias=bias) 
+        self.actv = nn.ReLU()
         current_channels = filter_size
         for _ in range(int(np.log2(image_size)) - 1):
             next_channels = current_channels * 2
@@ -105,7 +106,7 @@ class ComplexUNet(nn.Module):
         x = self.final_conv(x)
         #print(f"After final conv: {x.size()}")
         #print('====')   
-        x=nn.ReLU()(x)
+        x=self.actv(x)
         #x = normalize_data(x)
         #print(f"Output: {x.size()}")                  
         return x
