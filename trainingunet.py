@@ -1,20 +1,9 @@
-import matplotlib.pyplot as plt
+# This file is used to train the model. It uses the ComplexUNetLightning class from lightningunet.py to train the model.
 import os
 os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import pytorch_lightning as pl
-from argparse import Namespace
-from fcunet import ComplexUNet
-from loss import CustomSSIMLoss
-from datautils import ParseDataset
-from torch.utils.data import DataLoader
-from torch.utils.data import random_split
 from lightningunet import ComplexUNetLightning
 from pytorch_lightning.profilers import PyTorchProfiler
-import lightning as L
+
 
 
 def configure_callbacks(hparams):
@@ -49,10 +38,10 @@ def main(hparams):
                 
     )
     profiler = PyTorchProfiler()
-    trainer = pl.Trainer(max_epochs=hparams.max_epochs,
+    trainer = pl.Trainer(profiler=profiler,max_epochs=hparams.max_epochs,
                         accelerator='cpu' if hparams.gpus is None else 'gpu', 
                         enable_progress_bar=False,
-                        callbacks=callbacks)  # Set gpus to the number of GPUs you want to use or None for CPU
+                        callbacks=callbacks,fast_dev_run=hparams.fast_dev_run)  # Set gpus to the number of GPUs you want to use or None for CPU
     #torch.compile(model)
     trainer.fit(model)
     #trainer.test(model)
