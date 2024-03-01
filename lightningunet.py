@@ -28,23 +28,23 @@ class ComplexUNetLightning(pl.LightningModule):
         self.batch_size = batch_size
         self.loss=[]
         self.epochs=[]
-        self.all_targets=[]
-        self.all_outputs=[]
+        #self.all_targets=[]
+        #self.all_outputs=[]
         self.targets=[]
         self.outputs=[]
         self.sample_counter = 0
         
         self.loss_fn = CustomSSIMLoss
-        #self.loss_fn=F.mse_loss()
+        self.los_fn=F.mse_loss
 
     def forward(self, inputsA, inputsB):
         return self.complex_unet(inputsA, inputsB)
     
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True,drop_last=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True,drop_last=True,num_workers=0,pin_memory=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False,drop_last=True)
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False,drop_last=True,num_workers=0,pin_memory=True)
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False,drop_last=True)
@@ -62,7 +62,7 @@ class ComplexUNetLightning(pl.LightningModule):
         
         loss_1 =self.loss_fn(targets, outputs)
         self.log('Train_loss_1', loss_1)
-        loss_2 = F.mse_loss(targets, outputs)
+        loss_2 = self.los_fn(targets, outputs)
         self.log('Train_loss_2', loss_2)
         loss=loss_1+loss_2
         self.log('Train_loss', loss)
@@ -85,7 +85,7 @@ class ComplexUNetLightning(pl.LightningModule):
         outputs = self(inputsA, inputsB)
         loss_1 =self.loss_fn(targets, outputs)
         self.log('val_loss_1', loss_1)
-        loss_2 = F.mse_loss(targets, outputs)
+        loss_2 = self.los_fn(targets, outputs)
         self.log('val_loss_2', loss_2)
         loss=loss_1+loss_2
         loss = F.mse_loss(targets, outputs)
@@ -106,7 +106,7 @@ class ComplexUNetLightning(pl.LightningModule):
         outputs = self(inputsA, inputsB)
         loss_1=self.loss_fn(targets, outputs)
         self.log('test_loss_1', loss_1)
-        loss_2 = F.mse_loss(targets, outputs)
+        loss_2 = self.los_fn(targets, outputs)
         self.log('test_loss_2', loss_2)
         loss=loss_1+loss_2
         self.log('test_loss', loss)
@@ -207,45 +207,6 @@ class ComplexUNetLightning(pl.LightningModule):
         
 
 
-    def save_image(self, targets_np, outputs_np, num_images_to_plot, save_dir):
-        # Determine how many images to save
-        num_images_to_plot = min(num_images_to_plot, len(targets_np))
-
-        # Randomly select indices to save
-        indices_to_save = np.random.choice(len(targets_np), num_images_to_plot, replace=False)
-
-        # Ensure the directory for saving the images exists
-        os.makedirs(save_dir, exist_ok=True)
-
-        # Loop through the selected indices and save each image
-        for i in indices_to_save:
-            target_img = targets_np[i][0]  # Assuming single-channel images
-            output_img = outputs_np[i][0]
-
-            # Save the target and output images
-            plt.imsave(os.path.join(save_dir, f"target_{i}.png"), target_img)
-            plt.imsave(os.path.join(save_dir, f"output_{i}.png"), output_img)
-
-        # Plot the first N images
-        fig, axes = plt.subplots(num_images_to_plot, 2, figsize=(10, num_images_to_plot * 2))
-        for j in range(num_images_to_plot):
-            index = indices_to_save[j]
-            axes[j, 0].imshow(targets_np[index][0])
-            axes[j, 0].set_title('Ground Truth')
-            axes[j, 0].axis('off')
-
-            axes[j, 1].imshow(outputs_np[index][0])
-            axes[j, 1].set_title('Prediction')
-            axes[j, 1].axis('off')
-        #dont show the plot
-        
-        plt.tight_layout()
-        # Optionally, save the figure to a file
-        fig.savefig(os.path.join(save_dir, f'gt_vs_pred_{num_images_to_plot}.png'))
-        plt.close(fig)
-
-#
-    
 
     def save_images(self, targets_np, outputs_np, num_images_to_plot, save_dir):
         # Determine how many images to save
