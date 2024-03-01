@@ -1,3 +1,4 @@
+from re import T
 import torch
 import torch.fft
 import torch.nn as nn
@@ -56,7 +57,7 @@ class MonteCarloDropout(nn.Module):
 
 
 class Conv2D(nn.Module):
-    def __init__(self, in_channels, n_filters, n_depth=2, kernel_size=3, activation=nn.ReLU, dp_rate=0.1, batchnorm=True,bias = False):
+    def __init__(self, in_channels, n_filters, n_depth=2, kernel_size=3, activation=nn.ReLU, dp_rate=0.1, batchnorm=True,bias = True):
         super(Conv2D, self).__init__()
         self.n_depth = n_depth
         self.activation = activation
@@ -65,11 +66,11 @@ class Conv2D(nn.Module):
 
         self.layers = nn.ModuleList()
         for _ in range(n_depth):
-            self.layers.append(nn.Conv2d(in_channels, n_filters, kernel_size, padding='same', bias=not batchnorm))
+            self.layers.append(nn.Conv2d(in_channels, n_filters, kernel_size, padding='same',bias=True ))
             if batchnorm:
                 self.layers.append(nn.BatchNorm2d(n_filters))              
             if activation is not None:
-                self.layers.append(activation(inplace=True))
+                self.layers.append(activation())
             self.layers.append(MonteCarloDropout(dp_rate))
             in_channels = n_filters  # Output channels become input for the next layer
 
@@ -147,7 +148,7 @@ class ComplexConvTranspose2d(nn.Module):
     
 
 class ConvSpec2D(nn.Module):
-    def __init__(self, in_channels, n_filters, n_depth=1, kernel_size=3, activation=nn.ReLU, dp_rate=0.1, batchnorm=True, bias=False):
+    def __init__(self, in_channels, n_filters, n_depth=1, kernel_size=3, activation=nn.ReLU, dp_rate=0.1, batchnorm=True, bias=True):
         super(ConvSpec2D, self).__init__()
         self.layers = nn.ModuleList()
 
@@ -156,7 +157,7 @@ class ConvSpec2D(nn.Module):
             #self.layers.append(nn.BatchNorm2d(in_channels))
 
         for _ in range(n_depth):
-            conv_layer = ConvComplex2D_py(in_channels, n_filters, kernel_size, padding='same', bias=False)
+            conv_layer = ConvComplex2D_py(in_channels, n_filters, kernel_size, padding='same',bias=bias )
             self.layers.append(conv_layer)
 
             # Following layers are now correctly placed after convolution as in the TensorFlow model
@@ -164,7 +165,7 @@ class ConvSpec2D(nn.Module):
                 self.layers.append(nn.BatchNorm2d(n_filters*2))  # Assuming n_filters doubles after ConvComplex2D_py
 
             if activation is not None:
-                self.layers.append(activation(inplace=True))
+                self.layers.append(activation())
 
             if dp_rate > 0.0:
                 self.layers.append(MonteCarloDropout(dp_rate))
