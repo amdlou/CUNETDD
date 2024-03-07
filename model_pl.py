@@ -3,13 +3,14 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
+from torch.utils.data import random_split
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from model import ComplexUNet
 from loss_utils import CustomSSIMLoss
 from data_utils import ParseDataset
-from torch.utils.data import DataLoader
-from torch.utils.data import random_split
+
 
 
 def normalize_image(image):
