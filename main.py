@@ -44,6 +44,7 @@ def main(hparams):
     trainer = pl.Trainer(profiler=profiler,max_epochs=hparams.max_epochs,
                         accelerator='cpu' if hparams.gpus is None else 'gpu', 
                         enable_progress_bar=False,
+                        #precision=16
                         callbacks=callbacks,fast_dev_run=hparams.fast_dev_run)  # Set gpus to the number of GPUs you want to use or None for CPU
     #torch.compile(model)
     trainer.fit(model)
