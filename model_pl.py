@@ -11,14 +11,27 @@ from model import ComplexUNet
 from loss_utils import CustomSSIMLoss
 from data_utils import ParseDataset
 
+import matplotlib.pyplot as plt
+import os
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import pytorch_lightning as pl
+from fcunet import ComplexUNet
+from loss import CustomSSIMLoss
+from datautils import ParseDataset
+from torch.utils.data import DataLoader
+from torch.utils.data import random_split
 
+# Define MAX_SAMPLES
+MAX_SAMPLES = 500
 
 def normalize_image(image):
         max_val = np.max(image)
         if max_val > 0:
             return image / max_val
         return image
-
 
 class ComplexUNetLightning(pl.LightningModule):
     def __init__(self, input_channel, image_size, filter_size, n_depth, dp_rate=0.3, activation=nn.ReLU,batch_size=256):
@@ -27,12 +40,9 @@ class ComplexUNetLightning(pl.LightningModule):
         self.batch_size = batch_size
         self.loss=[]
         self.epochs=[]
-        #self.all_targets=[]
-        #self.all_outputs=[]
         self.targets=[]
         self.outputs=[]
         self.sample_counter = 0
-        
         self.loss_fn = CustomSSIMLoss
         self.los_fn=F.mse_loss
 
@@ -47,79 +57,64 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False,drop_last=True)
-    #def on_training_epoch_start(self):
-        #print("Validation epoch start")
-        #self.targets.clear()  # Clear the list of targets at the start of validation epoch
-        #self.outputs.clear()  # Clear the list of outputs at the start of validation epoch
-        #self.sample_counter = 0  # Reset the sample counter at the start of validation epoch
+
+    def collect_samples(self, targets, outputs, max_samples):
+        with torch.no_grad():
+            samples_to_collect = min(targets.size(0), max_samples - self.sample_counter)
+            if samples_to_collect > 0:
+                self.targets.append(targets[:samples_to_collect])
+                self.outputs.append(outputs[:samples_to_collect])
+                self.sample_counter += samples_to_collect
     
     def training_step(self, batch, batch_idx):
         inputsA, inputsB, targets = batch
-        #print(inputsA.shape,inputsB.shape,targets.shape)
-        outputs = self(inputsA, inputsB)
-        #print(f"Output: {outputs.size()}")
-        
+        outputs = self(inputsA, inputsB)       
         loss_1 =self.loss_fn(targets, outputs)
+        #print(f"Loss_1: {loss_1}")
         self.log('Train_loss_1', loss_1)
         loss_2 = self.los_fn(targets, outputs)
+        #print(f"Loss_2: {loss_2}")
         self.log('Train_loss_2', loss_2)
         loss=loss_1+loss_2
         self.log('Train_loss', loss)
-        
         #print(f"Loss: {loss}")
         return {'loss': loss}
     
     def on_validation_epoch_start(self):
-        #print("Validation epoch start")
         self.targets.clear()  # Clear the list of targets at the start of validation epoch
         self.outputs.clear()  # Clear the list of outputs at the start of validation epoch
         self.sample_counter = 0  # Reset the sample counter at the start of validation epoch
-        #make sure that the lists are empty
-        #print(f"Targets: {len(self.targets)}, Outputs: {len(self.outputs)}")
-        #print(f"Sample counter: {self.sample_counter}")
-
-        
+ 
     def validation_step(self, batch, batch_idx):
         inputsA, inputsB, targets = batch
         outputs = self(inputsA, inputsB)
         loss_1 =self.loss_fn(targets, outputs)
+        #print(f"Loss_1: {loss_1}")
         self.log('val_loss_1', loss_1)
         loss_2 = self.los_fn(targets, outputs)
+        #print(f"Loss_2: {loss_2}")
         self.log('val_loss_2', loss_2)
         loss=loss_1+loss_2
-        loss = F.mse_loss(targets, outputs)
+        #print(f"Loss: {loss}")
         self.log('val_loss', loss) 
-        #samples should be cleared before each epoch      
-        MAX_SAMPLES = 500
-        samples_to_collect = min(targets.size(0), MAX_SAMPLES - self.sample_counter)
-        if samples_to_collect > 0:
-            self.targets.append(targets[:samples_to_collect].detach())
-            self.outputs.append(outputs[:samples_to_collect].detach())
-            self.sample_counter += samples_to_collect
-        #print(f"Sample counter: {self.sample_counter}")
-        
+        self.collect_samples(targets, outputs, MAX_SAMPLES)
         return {'val_loss': loss}
 
     def test_step(self, batch, batch_idx):
         inputsA, inputsB, targets = batch
         outputs = self(inputsA, inputsB)
         loss_1=self.loss_fn(targets, outputs)
+        #print(f"Loss_1: {loss_1}")
         self.log('test_loss_1', loss_1)
         loss_2 = self.los_fn(targets, outputs)
+        #print(f"Loss_2: {loss_2}")
         self.log('test_loss_2', loss_2)
         loss=loss_1+loss_2
+        #print(f"Loss: {loss}")
         self.log('test_loss', loss)
-        MAX_SAMPLES = 500
-        samples_to_collect = min(targets.size(0), MAX_SAMPLES - self.sample_counter)
-        if samples_to_collect > 0:
-            self.targets.append(targets[:samples_to_collect].detach())
-            self.outputs.append(outputs[:samples_to_collect].detach())
-            self.sample_counter += samples_to_collect
-        #self.targets.append(targets.detach())
-        #self.outputs.append(outputs.detach())
+        self.collect_samples(targets, outputs, MAX_SAMPLES)
         return {'test_loss': loss}
         
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
@@ -136,7 +131,6 @@ class ComplexUNetLightning(pl.LightningModule):
         print(f"Train size: {train_size}, Val size: {val_size}, Test size: {test_size}")
                 
         self.train_dataset, self.val_dataset, self.test_dataset = random_split(full_dataset, [train_size, val_size, test_size])
-    
     
     def on_train_epoch_end(self, num_images_to_plot=2):
         
@@ -171,8 +165,8 @@ class ComplexUNetLightning(pl.LightningModule):
         outputs = torch.cat(self.outputs, dim=0)
 
         # Convert tensors to numpy arrays for plotting
-        targets_np = targets.cpu().numpy()
-        outputs_np = outputs.cpu().numpy()
+        targets_np = targets.cpu().to(torch.float32).numpy()
+        outputs_np = outputs.cpu().to(torch.float32).numpy()
 
         # Save images
         self.save_images(targets_np, outputs_np, num_images_to_plot, "test_image")
@@ -180,8 +174,6 @@ class ComplexUNetLightning(pl.LightningModule):
         self.targets=[]
         self.outputs=[]
 
-    
-    
     def on_validation_epoch_end(self,num_images_to_plot=10):
         #print("Validation epoch end")
         #only for each 10th epoch
@@ -191,22 +183,16 @@ class ComplexUNetLightning(pl.LightningModule):
             outputs = torch.cat(self.outputs, dim=0)
 
             # Convert tensors to numpy arrays for plotting
-            targets_np = targets.cpu().numpy()
-            outputs_np = outputs.cpu().numpy()
-            #print(f"Targets: {targets_np.shape}, Outputs: {outputs_np.shape}")
-
+            targets_np = targets.cpu().to(torch.float32).numpy()
+            outputs_np = outputs.cpu().to(torch.float32).numpy() 
+            
             # Save images
             #foldername should be unique for each epoch
-            self.save_images(targets_np, outputs_np, num_images_to_plot, f"validation_image_{self.current_epoch}")           
+            #self.save_images(targets_np, outputs_np, num_images_to_plot, f"validation_image_{self.current_epoch}")           
             #clear the lists
             self.targets=[]
             self.outputs=[]
-            #priint count of tartgets and outputs
-            #print(f"Targets: {len(self.targets)}, Outputs: {len(self.outputs)}")
-        
-
-
-
+  
     def save_images(self, targets_np, outputs_np, num_images_to_plot, save_dir):
         # Determine how many images to save
         num_images_to_plot = min(num_images_to_plot, len(targets_np))
@@ -243,3 +229,7 @@ class ComplexUNetLightning(pl.LightningModule):
         # Optionally, save the figure to a file
         fig.savefig(os.path.join(save_dir, f'gt_vs_pred_{num_images_to_plot}.png'))
         plt.close(fig)
+
+
+
+
