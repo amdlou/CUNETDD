@@ -1,9 +1,11 @@
 # This file is used to train the model. It uses the ComplexUNetLightning class from lightningunet.py to train the model.
 import os
+from argparse import Namespace
+import pytorch_lightning as pl
 import torch.nn as nn
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-from lightningunet import ComplexUNetLightning
+from model_pl import ComplexUNetLightning
 from pytorch_lightning.profilers import PyTorchProfiler
+
 
 
 
