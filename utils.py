@@ -1,9 +1,7 @@
-from re import T
 import torch
 import torch.fft
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 def cross_correlate_fft(cb, pr):
     # Assuming cb and pr are torch tensors in the shape of (batch, channel, height, width)
@@ -33,7 +31,7 @@ def cross_correlate_fft(cb, pr):
 def cross_correlate_ifft(x):
     # Assuming x is a torch tensor in the shape of (batch, 2 * channel, height, width)
     # where first half channels are real and second half are imaginary parts
-
+    x = x.to(torch.float32) # Convert to float32 for torch.fft
     input_channel = x.size(1) // 2
     input_complex = torch.complex(x[:, :input_channel, :, :], x[:, input_channel:, :, :])
 
@@ -44,17 +42,6 @@ def cross_correlate_ifft(x):
     output = output_complex.real
 
     return output
-
-
-class MonteCarloDropout(nn.Module):
-    def __init__(self, p=0.1):
-        super(MonteCarloDropout, self).__init__()
-        self.p = p
-
-    def forward(self, inputs):
-        # Apply dropout both in training and evaluation modes
-        return F.dropout(inputs, self.p, training=True)
-
 
 class Conv2D(nn.Module):
     def __init__(self, in_channels, n_filters, n_depth=2, kernel_size=3, activation=nn.ReLU, dp_rate=0.1, batchnorm=True,bias = True):
@@ -71,21 +58,16 @@ class Conv2D(nn.Module):
                 self.layers.append(nn.BatchNorm2d(n_filters))              
             if activation is not None:
                 self.layers.append(activation())
-            self.layers.append(MonteCarloDropout(dp_rate))
-            in_channels = n_filters  # Output channels become input for the next layer
+            self.layers.append(nn.Dropout(dp_rate))
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
         return x
 
-
 class ConvComplex2D_py(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding='same', dilation=1, groups=1, bias=True):
         super(ConvComplex2D_py, self).__init__()
-
-        # No need to adjust in_channels and out_channels for real and imaginary parts
-        # Both the real and imaginary convolutions will now output out_channels channels each
 
         # Initialize convolution layers for real and imaginary parts
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
@@ -124,37 +106,10 @@ class ComplexUpsample2d(nn.Module):
         output = torch.cat([real_output, imag_output], dim=1)
         return output
 
-
-
-
-class ComplexConvTranspose2d(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel_size, stride=1, padding=0, output_padding=0, dilation=1, groups=1, bias=True, **kwargs):
-        super(ComplexConvTranspose2d, self).__init__()
-        # Define transposed convolution for real and imaginary separately
-        self.tconv_re = nn.ConvTranspose2d(in_channel, out_channel, kernel_size, stride, padding, output_padding, groups, bias, dilation)
-        self.tconv_im = nn.ConvTranspose2d(in_channel, out_channel, kernel_size, stride, padding, output_padding, groups, bias, dilation)
-
-    def forward(self, x):
-        # Split input tensor into real and imaginary parts based on the channel dimension
-        real_input, imag_input = torch.chunk(x, 2, dim=1)
-
-        # Apply transposed convolution separately and perform complex arithmetic
-        real_output = self.tconv_re(real_input) - self.tconv_im(imag_input)
-        imag_output = self.tconv_im(real_input) + self.tconv_re(imag_input)
-
-        # Concatenate the outputs to maintain the structure
-        output = torch.cat([real_output, imag_output], dim=1)
-        return output
-    
-
 class ConvSpec2D(nn.Module):
     def __init__(self, in_channels, n_filters, n_depth=1, kernel_size=3, activation=nn.ReLU, dp_rate=0.1, batchnorm=True, bias=True):
         super(ConvSpec2D, self).__init__()
         self.layers = nn.ModuleList()
-
-        #if batchnorm:
-            # Apply BN to the input channels before convolution
-            #self.layers.append(nn.BatchNorm2d(in_channels))
 
         for _ in range(n_depth):
             conv_layer = ConvComplex2D_py(in_channels, n_filters, kernel_size, padding='same',bias=bias )
@@ -168,7 +123,7 @@ class ConvSpec2D(nn.Module):
                 self.layers.append(activation())
 
             if dp_rate > 0.0:
-                self.layers.append(MonteCarloDropout(dp_rate))
+                self.layers.append(nn.Dropout(dp_rate))
 
             in_channels = n_filters # Adjust for the next layer, if any
     def forward(self, x):
