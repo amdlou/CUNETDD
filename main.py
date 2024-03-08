@@ -50,7 +50,7 @@ def main(hparams):
                         callbacks=callbacks,
                         fast_dev_run=hparams.fast_dev_run,
                         log_every_n_steps=50, #50 is the default value
-#                        precision=16,  # Enable mixed precision training why??
+                        precision=16,  # Enable mixed precision training why??
 
                         ) 
     #torch.compile(model)
