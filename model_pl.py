@@ -159,39 +159,30 @@ class ComplexUNetLightning(pl.LightningModule):
            # Clear the plot after saving to avoid memory issues with multiple plots
            plt.close()
     
-    def on_test_epoch_end(self, num_images_to_plot=10):
+    def process_epoch_end(self, num_images_to_plot, save_dir):
         # Concatenate all targets and outputs
         targets = torch.cat(self.targets, dim=0)
         outputs = torch.cat(self.outputs, dim=0)
 
         # Convert tensors to numpy arrays for plotting
+        #targets_np = targets.cpu().numpy()
+        #outputs_np = outputs.cpu().numpy()
         targets_np = targets.cpu().to(torch.float32).numpy()
-        outputs_np = outputs.cpu().to(torch.float32).numpy()
+        outputs_np = outputs.cpu().to(torch.float32).numpy()  # Convert to Float32 before converting to numpy
 
         # Save images
-        self.save_images(targets_np, outputs_np, num_images_to_plot, "test_image")
+        self.save_images(targets_np, outputs_np, num_images_to_plot, save_dir)
         #clear the lists
         self.targets=[]
-        self.outputs=[]
+        self.outputs=[] 
 
     def on_validation_epoch_end(self,num_images_to_plot=10):
-        #print("Validation epoch end")
-        #only for each 10th epoch
         if self.current_epoch % 10 == 0:
-            # Concatenate all targets and outputs
-            targets = torch.cat(self.targets, dim=0)
-            outputs = torch.cat(self.outputs, dim=0)
+            self.process_epoch_end(num_images_to_plot, f"validation_image_{self.current_epoch}")
+    
+    def on_test_epoch_end(self, num_images_to_plot=10):
+        self.process_epoch_end(num_images_to_plot, "test_image")
 
-            # Convert tensors to numpy arrays for plotting
-            targets_np = targets.cpu().to(torch.float32).numpy()
-            outputs_np = outputs.cpu().to(torch.float32).numpy() 
-            
-            # Save images
-            #foldername should be unique for each epoch
-            #self.save_images(targets_np, outputs_np, num_images_to_plot, f"validation_image_{self.current_epoch}")           
-            #clear the lists
-            self.targets=[]
-            self.outputs=[]
   
     def save_images(self, targets_np, outputs_np, num_images_to_plot, save_dir):
         # Determine how many images to save
