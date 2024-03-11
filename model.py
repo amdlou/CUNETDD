@@ -25,7 +25,7 @@ class ComplexUNet(nn.Module):
             current_image_size //= 2
         
         # Decoder - Convolution followed by Upsampling
-        for idx in range(len(self.encoder) // 2):  # Assuming encoder and decoder are symmetric
+        for idx in range(len(self.encoder) // 2):
             if current_image_size < filter_size:
                 upsample_channels = max_channels
             else:
