@@ -75,6 +75,5 @@ profiler = PyTorchProfiler(
 trainer = pl.Trainer(max_epochs=hparams.max_epochs ,accelerator='cpu' if hparams.gpus is None else 'gpu',callbacks=callbacks)
 trainer.fit(model)
 #trainer.test(model=model, dataloaders=model.test_dataloader())
-#for name, module in model.named_modules():
-    #print(name, module)
+
 #trainer.test(model)
