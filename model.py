@@ -7,7 +7,8 @@ from utils import ConvSpec2D,Conv2D,ComplexUpsample2d
 class ComplexUNet(nn.Module):
     def __init__(self, input_channel, image_size, filter_size, n_depth, dp_rate=0.1, activation=nn.ReLU, batchnorm=True, bias=True):
         super(ComplexUNet, self).__init__()
-        self.cross_correlate = cross_correlate_fft 
+        self.cross_correlate = cross_correlate_fft
+        self.inverse_fft = cross_correlate_ifft  
         self.initial_conv = ConvSpec2D(input_channel, filter_size, 3, n_depth, activation, dp_rate,bias, batchnorm)
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
