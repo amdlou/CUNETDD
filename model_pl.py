@@ -11,19 +11,6 @@ from model import ComplexUNet
 from loss_utils import CustomSSIMLoss
 from data_utils import ParseDataset
 
-import matplotlib.pyplot as plt
-import os
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import pytorch_lightning as pl
-from fcunet import ComplexUNet
-from loss import CustomSSIMLoss
-from datautils import ParseDataset
-from torch.utils.data import DataLoader
-from torch.utils.data import random_split
-
 # Define MAX_SAMPLES
 MAX_SAMPLES = 500
 
