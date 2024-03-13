@@ -1,13 +1,24 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
+"""Exploring data by data_utils.py"""
 from pathlib import Path
+from typing import Union, List, Tuple
+import torch
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 import h5py
 import numpy as np
-import glob
-
 
 
 def normalize_data(data):
+    """
+    Normalize the input data by dividing each image by its maximum value.
+
+    Args:
+        data (torch.Tensor): Input data tensor of shape [B, C, H, W], where B is the batch size,
+                             C is the number of channels, H is the height, and W is the width.
+
+    Returns:
+        torch.Tensor: Normalized data tensor of the same shape as the input data.
+
+    """
     # Check if there's a batch dimension, and add one if there isn't
     was_singleton = False
     if len(data.shape) == 3:  # Shape is [1, H, W]
@@ -30,7 +41,48 @@ def normalize_data(data):
     return normalized_data
 
 class ParseDataset(Dataset):
-    def __init__(self, filepath='', image_size=256, out_channel=1):
+    """
+    A PyTorch dataset class for parsing and preparing datasets from HDF5 or TFRecords files.
+
+    Args:
+        filepath (str): The path to the dataset file or directory.
+        image_size (int or list): The size of the images in the dataset. Can be an integer (when height=width) or a list (height, width).
+        out_channel (int): The number of output channels.
+
+    Attributes:
+        datasets (list): A list to store the individual datasets.
+        ds (torch.utils.data.ConcatDataset): The concatenated dataset.
+        filepath (Path): The path to the dataset file or directory.
+        file_lists (list): A list of file paths.
+        from_dir (bool): Indicates whether the dataset is loaded from a directory or a single file.
+        ext (str): The file extension of the dataset file.
+        height (int): The height of the images in the dataset.
+        width (int): The width of the images in the dataset.
+        out_channel (int): The number of output channels.
+        task (str): The task associated with the dataset.
+        one_hot (bool): Indicates whether the labels are one-hot encoded.
+
+    Methods:
+        read(batch_size=256, shuffle=True, mode='default', task='system', one_hot=False):
+            Reads and prepares the dataset for training or evaluation.
+
+        prepare_dataset_from_tfrecords(batch_size, shuffle, mode):
+            Loads the dataset from TFRecords files.
+
+        prepare_dataset_from_hdf5(batch_size, shuffle, mode):
+            Loads the dataset from HDF5 files.
+
+        __len__():
+            Returns the total number of samples in the dataset.
+
+        __getitem__(idx):
+            Returns the sample at the given index.
+
+    """
+
+    def __init__(self, filepath: str = '',
+                  image_size: Union[int, List[int]] = 256,
+                    out_channel: int = 1):
         self.datasets = []
         self.ds = None
         self.filepath = Path(filepath)
@@ -53,31 +105,45 @@ class ParseDataset(Dataset):
 
         self.out_channel = out_channel
 
-    def read(self, batch_size=256, shuffle=True, mode='default', task='system', one_hot=False):
-        self.task = task
-        self.one_hot = one_hot
-        if self.ext == 'h5':
-            self.ds = self.prepare_dataset_from_hdf5(batch_size, shuffle, mode)
-        elif self.ext == 'tfrecords':
-            self.ds = self.prepare_dataset_from_tfrecords(batch_size, shuffle, mode)
+    def read(self, batch_size: int = 256, shuffle: bool = True, mode: str = 'default') -> DataLoader:
+        """
+        Reads and prepares the dataset for training or evaluation.
+
+        Args:
+            batch_size (int): The batch size for the DataLoader.
+            shuffle (bool): Indicates whether to shuffle the dataset.
+            mode (str): The mode for preparing the dataset.
+            task (str): The task associated with the dataset.
+            one_hot (bool): Indicates whether the labels are one-hot encoded.
+
+        Returns:
+            torch.utils.data.DataLoader: The DataLoader object for the prepared dataset.
+
+        """
+        self.ds = self.prepare_dataset_from_hdf5(shuffle, mode)
         return DataLoader(self.ds, batch_size=batch_size, shuffle=shuffle)
 
-    def prepare_dataset_from_tfrecords(self, batch_size, shuffle, mode):
-        # Implement loading TFRecords data into a PyTorch dataset
-        pass
+    def prepare_dataset_from_hdf5(self, shuffle: bool, mode: str) -> ConcatDataset:
+        """
+        Loads the dataset from HDF5 files.
 
+        Args:
+            batch_size (int): The batch size for the DataLoader.
+            shuffle (bool): Indicates whether to shuffle the dataset.
+            mode (str): The mode for preparing the dataset.
 
-    def prepare_dataset_from_hdf5(self, batch_size, shuffle, mode):
+        Returns:
+            torch.utils.data.ConcatDataset: The concatenated dataset.
+
+        """
         for file in self.file_lists:
-            
             try:
                 with h5py.File(file, 'r') as data:
                     # Assuming data['dataMeas'] and data['dataPots'] are numpy arrays of shape (256, 256, 25)
                     cbed = [torch.from_numpy(np.reshape(data['dataMeas'][..., i], (256, 256, 1))).unsqueeze(0).permute(0, 3, 1, 2) for i in range(25)]
                     probe = torch.from_numpy(data['dataProbe'][...]).unsqueeze(0).unsqueeze(0)
                     pot = [torch.from_numpy(np.reshape(data['dataPots'][..., i], (256, 256, 1))).unsqueeze(0).permute(0, 3, 1,2) for i in range(25)]
-                    
-                    
+
                     if mode == 'default':
                         ds = torch.utils.data.TensorDataset(cbed[0], probe, pot[0])
                         self.datasets.append(ds)
@@ -91,22 +157,40 @@ class ParseDataset(Dataset):
                         for i in range(25):
                             ds = torch.utils.data.TensorDataset(cbed[i], probe, pot[i])
                             self.datasets.append(ds)
-                            
+
                     self.ds = torch.utils.data.ConcatDataset(self.datasets)
                     print(f"File: {file}, Num items: {len(self.ds)}")
             except OSError as e:
-            # If an error occurs, skip the file and print/log the error
-                print("Skipped corrupted or incompatible file Error: {e}")
+                # If an error occurs, skip the file and print/log the error
+                print(f"Skipped corrupted or incompatible file. Error: {e}")
         if shuffle:
             indices = torch.randperm(len(self.ds))
             self.ds = torch.utils.data.Subset(self.ds, indices)
 
         return self.ds
-    def __len__(self):
+
+    def __len__(self) -> int:
+        """
+        Returns the total number of samples in the dataset.
+
+        Returns:
+            int: The total number of samples in the dataset.
+
+        """
         total_len = sum([len(ds) for ds in self.datasets])
         return total_len
-    
-    def __getitem__(self, idx):
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Returns the sample at the given index.
+
+        Args:
+            idx (int): The index of the sample.
+
+        Returns:
+            tuple: A tuple containing the input features and labels.
+
+        """
         for ds in self.datasets:
             if idx < len(ds):
                 cbed, probe, pot = ds[idx]

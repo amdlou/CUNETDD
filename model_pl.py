@@ -1,29 +1,46 @@
-import matplotlib.pyplot as plt
+"""Module providing pytorch lightning for the complex FCU_net ."""
 import os
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from model import ComplexUNet
-from loss_utils import CustomSSIMLoss
-from data_utils import ParseDataset
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
+from model import ComplexUNet
+from loss_utils import custom_ssim_loss
+from data_utils import ParseDataset
+
 
 # Define MAX_SAMPLES
 MAX_SAMPLES = 500
 
-def normalize_image(image):
-        max_val = np.max(image)
-        if max_val > 0:
-            return image / max_val
-        return image
+
+def normalize_image(image: np.ndarray) -> np.ndarray:
+    """
+    Normalize the given image by dividing it by the maximum pixel value.
+
+    Args:
+        image (numpy.ndarray): The input image.
+
+    Returns:
+        numpy.ndarray: The normalized image.
+    """
+    max_val = np.max(image)
+    if max_val > 0:
+        return image / max_val
+    return image
 
 class ComplexUNetLightning(pl.LightningModule):
-    def __init__(self, input_channel, image_size, filter_size, n_depth, dp_rate=0.3, activation=nn.ReLU,batch_size=256,num_workers=4,shuffle=True):
+    """Class representing model"""
+    def __init__(self, input_channel: int, image_size: int, filter_size: int,
+                  n_depth: int, dp_rate: float = 0.3,
+                  activation: nn.Module = nn.ReLU, batch_size: int = 256,
+                    num_workers: int = 4, shuffle: bool = True) -> None:
         super(ComplexUNetLightning, self).__init__()
-        self.complex_unet = ComplexUNet(input_channel, image_size, filter_size, n_depth, dp_rate, activation)
+        self.complex_unet = ComplexUNet(input_channel, image_size, filter_size,
+                                         n_depth, dp_rate, activation)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
@@ -33,19 +50,29 @@ class ComplexUNetLightning(pl.LightningModule):
         self.outputs=[]
         self.sample_counter = 0
         self.los_fn=F.mse_loss
-        self.SSIM_loss = CustomSSIMLoss
+        self.ssim_loss = custom_ssim_loss
 
-    def forward(self, inputsA, inputsB):
-        return self.complex_unet(inputsA, inputsB)
-    
-    def calculate_loss(self, targets, outputs):
-        loss_1 = self.SSIM_loss(targets, outputs)
-        loss_2 = F.mse_loss(targets, outputs)
-        total_loss = loss_1 + loss_2
-        return total_loss, loss_1, loss_2
+    def forward(self, inputsa: torch.Tensor, inputsb: torch.Tensor) -> torch.Tensor: # pylint: disable=arguments-differ
+        """
+        Forward pass of the model.
 
-    def create_dataloader(self, dataset):
-        return DataLoader(dataset, batch_size=self.batch_size, shuffle=self.shuffle, drop_last=True, num_workers=self.num_workers ,persistent_workers=True, pin_memory=True)
+        Args:
+            inputsA: The input for stream A.
+            inputsB: The input for stream B.
+
+        Returns:
+            The output of the complex UNet model.
+        """
+        return self.complex_unet(inputsa, inputsb)
+
+
+#######################
+
+
+    def create_dataloader(self, dataset: torch.utils.data.Dataset) -> DataLoader:
+        """Function printing python version."""
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=self.shuffle, drop_last=True,
+                        num_workers=self.num_workers ,persistent_workers=True, pin_memory=True)
 
     def train_dataloader(self):
         return self.create_dataloader(self.train_dataset)
@@ -55,19 +82,32 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def test_dataloader(self):
         return self.create_dataloader(self.test_dataset)
-   
-    def collect_samples(self, targets, outputs, max_samples):
+    
+    def collect_samples(self, targets: torch.Tensor, outputs: torch.Tensor, max_samples: int) -> None:
+        """Function printing python version."""
         with torch.no_grad():
             samples_to_collect = min(targets.size(0), max_samples - self.sample_counter)
             if samples_to_collect > 0:
                 self.targets.append(targets[:samples_to_collect])
                 self.outputs.append(outputs[:samples_to_collect])
                 self.sample_counter += samples_to_collect
-    
+                
     def training_step(self, batch, batch_idx):
-        inputsA, inputsB, targets = batch
-        outputs = self(inputsA, inputsB)
-        total_loss, loss_1, loss_2 = self.calculate_loss(targets, outputs)
+
+        """
+        Performs a single training step.
+
+        Args:
+            batch: The input batch containing inputsA, inputsB, and targets.
+            batch_idx: The index of the current batch.
+
+        Returns:
+            A dictionary containing the loss value.
+
+        """
+        inputsa, inputsb, targets = batch
+        outputs = self(inputsa, inputsb)
+        total_loss, loss_1, loss_2 = custom_ssim_loss(targets, outputs)
         self.log('Train_loss_1', loss_1)
         self.log('Train_loss_2', loss_2)
         self.log('Train_loss', total_loss)
@@ -79,10 +119,10 @@ class ComplexUNetLightning(pl.LightningModule):
         self.sample_counter = 0  # Reset the sample counter at the start of validation epoch
  
     def validation_step(self, batch, batch_idx):
-        inputsA, inputsB, targets = batch
+        inputsa, inputsb, targets = batch
         with torch.no_grad():
-            outputs = self(inputsA, inputsB)
-            total_loss, loss_1, loss_2 = self.calculate_loss(targets, outputs)
+            outputs = self(inputsa, inputsb)
+            total_loss, loss_1, loss_2 = custom_ssim_loss(targets, outputs)
             self.log('val_loss_1', loss_1)
             self.log('val_loss_2', loss_2)
             self.log('val_loss', total_loss)
@@ -91,9 +131,9 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         with torch.no_grad():
-            inputsA, inputsB, targets = batch
-            outputs = self(inputsA, inputsB)
-            total_loss, loss_1, loss_2 = self.calculate_loss(targets, outputs)
+            inputsa, inputsb, targets = batch
+            outputs = self(inputsa, inputsb)
+            total_loss, loss_1, loss_2 = custom_ssim_loss(targets, outputs)
             self.log('test_loss_1', loss_1)
             self.log('test_loss_2', loss_2)
             self.log('test_loss', total_loss)
@@ -108,7 +148,7 @@ class ComplexUNetLightning(pl.LightningModule):
         # Load the full dataset
         torch.manual_seed(42)
         full_dataset = ParseDataset(filepath='3fb20ba5-ed3d-4c55-9e35-cfaa97b85cdd_training.h5')
-        full_dataset.read(batch_size=self.batch_size, shuffle=True, mode='default', task='system', one_hot=False)
+        full_dataset.read(batch_size=self.batch_size, shuffle=True, mode='default')
         # Split the dataset into training, validation, and test datasets
         train_size = int(0.7 * len(full_dataset))  # Use 70% of the data for training
         val_size = int(0.15 * len(full_dataset))  # Use 15% of the data for validation
@@ -116,7 +156,7 @@ class ComplexUNetLightning(pl.LightningModule):
         print(f"Train size: {train_size}, Val size: {val_size}, Test size: {test_size}")
                 
         self.train_dataset, self.val_dataset, self.test_dataset = random_split(full_dataset, [train_size, val_size, test_size])
-        ''''
+        """
         # Create the DataLoaders once in the setup method
         train_folder = 'Train'
         val_folder = 'val'
@@ -131,7 +171,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.train_dataset.read(batch_size=self.batch_size, shuffle=True, mode='default', task='system', one_hot=False)
         self.val_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default', task='system', one_hot=False)
         self.test_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default', task='system', one_hot=False)
-      '''
+        """
     def on_train_epoch_end(self, num_images_to_plot=2):
         
         avg_loss = self.trainer.callback_metrics['Train_loss']
@@ -159,22 +199,32 @@ class ComplexUNetLightning(pl.LightningModule):
            # Clear the plot after saving to avoid memory issues with multiple plots
            plt.close()
     
-    def process_epoch_end(self, num_images_to_plot, save_dir):
+    def process_epoch_end(self, num_images_to_plot: int, save_dir: str) -> None:
+        """
+        Process the end of an epoch by concatenating targets and outputs,
+        converting them to numpy arrays, saving images, and clearing the lists.
+
+        Args:
+            num_images_to_plot (int): Number of images to plot and save.
+            save_dir (str): Directory to save the images.
+
+        Returns:
+            None
+        """
         # Concatenate all targets and outputs
         targets = torch.cat(self.targets, dim=0)
         outputs = torch.cat(self.outputs, dim=0)
 
         # Convert tensors to numpy arrays for plotting
-        #targets_np = targets.cpu().numpy()
-        #outputs_np = outputs.cpu().numpy()
         targets_np = targets.cpu().to(torch.float32).numpy()
         outputs_np = outputs.cpu().to(torch.float32).numpy()  # Convert to Float32 before converting to numpy
 
         # Save images
         self.save_images(targets_np, outputs_np, num_images_to_plot, save_dir)
-        #clear the lists
-        self.targets=[]
-        self.outputs=[] 
+
+        # Clear the lists
+        self.targets = []
+        self.outputs = []
 
     def on_validation_epoch_end(self,num_images_to_plot=10):
         if self.current_epoch % 10 == 0:
@@ -184,7 +234,19 @@ class ComplexUNetLightning(pl.LightningModule):
         self.process_epoch_end(num_images_to_plot, "test_image")
 
   
-    def save_images(self, targets_np, outputs_np, num_images_to_plot, save_dir):
+    def save_images(self, targets_np: np.ndarray, outputs_np: np.ndarray, num_images_to_plot: int, save_dir: str) -> None:
+        """
+        Save a specified number of target and output images to a directory.
+
+        Args:
+            targets_np (numpy.ndarray): Array of target images.
+            outputs_np (numpy.ndarray): Array of output images.
+            num_images_to_plot (int): Number of images to save and plot.
+            save_dir (str): Directory path to save the images.
+
+        Returns:
+            None
+        """
         # Determine how many images to save
         num_images_to_plot = min(num_images_to_plot, len(targets_np))
 
