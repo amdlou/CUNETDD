@@ -25,7 +25,7 @@ def configure_callbacks(hparams: Namespace) -> List[Callback]:
         patience=1000,
         verbose=True,
         mode='min')
-      
+      #IMAN: how can we reload the best model weights and use them as initial weight for the next time that we want to train the model? please add this feature to the code 
     checkpoint = pl.callbacks.ModelCheckpoint(
         monitor='val_loss',
         dirpath=hparams.checkpoint_dir,
@@ -46,7 +46,7 @@ def main(hparams: Namespace) -> None:
         None
     """
     callbacks = configure_callbacks(hparams)
-    torch.backends.cudnn.benchmark = True
+#    torch.backends.cudnn.benchmark = True
 
     model = ComplexUNetLightning(
         input_channel=hparams.input_channel,
@@ -59,6 +59,20 @@ def main(hparams: Namespace) -> None:
         num_workers=hparams.num_workers,
         shuffle=hparams.shuffle,
     )
+    if hparams.checkpoint_path:
+        model = ComplexUNetLightning.load_from_checkpoint(
+            hparams.checkpoint_path,
+            input_channel=hparams.input_channel,
+            image_size=hparams.image_size,
+            filter_size=hparams.filter_size,
+            n_depth=hparams.n_depth,
+            dp_rate=hparams.dp_rate,
+            activation=hparams.activation,
+            batch_size=hparams.batch_size,
+            num_workers=hparams.num_workers,
+            shuffle=hparams.shuffle,
+            checkpoint_path=hparams.checkpoint_path  # Pass the checkpoint_path argument
+        )
     profiler = PyTorchProfiler()
     trainer = pl.Trainer(
         profiler=profiler,
@@ -69,6 +83,7 @@ def main(hparams: Namespace) -> None:
         fast_dev_run=hparams.fast_dev_run,
         log_every_n_steps=50,  # 50 is the default value
         precision=16,  # Enable mixed precision training why??
+        benchmark=True,
     )
     trainer.fit(model)
 
@@ -88,6 +103,7 @@ if __name__ == '__main__':
         'checkpoint_dir': './',
         'shuffle': True,  # Set to False to disable shuffling
         'num_workers': 4,  # Set the number of workers for data loading
+        'checkpoint_path': './',  # Set to the path of a checkpoint to resume training
     }
         
     hparams = Namespace(**args)
