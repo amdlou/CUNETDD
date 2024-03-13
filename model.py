@@ -39,7 +39,7 @@ class ComplexUNet(nn.Module):
         current_channels = filter_size
         max_channels = 256
         current_image_size = image_size
-        
+         
         # Encoder - Convolution followed by Pooling
         for _ in range(int(np.log2(image_size)) - 1):
             next_channels = min(current_channels * 2, max_channels)
