@@ -65,23 +65,6 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         return self.complex_unet(inputsa, inputsb)
 
-
-#######################
-
-
-    def create_dataloader(self, dataset: torch.utils.data.Dataset) -> DataLoader:
-        """Function printing python version."""
-        return DataLoader(dataset, batch_size=self.batch_size, shuffle=self.shuffle, drop_last=True,
-                        num_workers=self.num_workers ,persistent_workers=True, pin_memory=True)
-
-    def train_dataloader(self):
-        return self.create_dataloader(self.train_dataset)
-
-    def val_dataloader(self):
-        return self.create_dataloader(self.val_dataset)
-
-    def test_dataloader(self):
-        return self.create_dataloader(self.test_dataset)
     
     def collect_samples(self, targets: torch.Tensor, outputs: torch.Tensor, max_samples: int) -> None:
         """Function printing python version."""
@@ -172,6 +155,21 @@ class ComplexUNetLightning(pl.LightningModule):
         self.val_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default', task='system', one_hot=False)
         self.test_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default', task='system', one_hot=False)
         """
+
+    def create_dataloader(self, dataset: torch.utils.data.Dataset) -> DataLoader:
+        """Function printing python version."""
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=self.shuffle, drop_last=True,
+                        num_workers=self.num_workers ,persistent_workers=True, pin_memory=True)
+
+    def train_dataloader(self):
+        return self.create_dataloader(self.train_dataset)
+
+    def val_dataloader(self):
+        return self.create_dataloader(self.val_dataset)
+
+    def test_dataloader(self):
+        return self.create_dataloader(self.test_dataset)
+    
     def on_train_epoch_end(self, num_images_to_plot=2):
         
         avg_loss = self.trainer.callback_metrics['Train_loss']
