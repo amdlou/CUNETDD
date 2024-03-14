@@ -1,4 +1,5 @@
 """MAIN.PY: Main file for training the ComplexUNet model using PyTorch Lightning."""
+from pickle import TRUE
 from typing import Any, List, Dict
 from argparse import Namespace
 import torch
@@ -7,7 +8,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.callbacks import Callback
 from model_pl import ComplexUNetLightning
-
 
 def configure_callbacks(hparams: Namespace) -> List[Callback]:
     """
@@ -25,7 +25,7 @@ def configure_callbacks(hparams: Namespace) -> List[Callback]:
         patience=1000,
         verbose=True,
         mode='min')
-      #IMAN: how can we reload the best model weights and use them as initial weight for the next time that we want to train the model? please add this feature to the code 
+      
     checkpoint = pl.callbacks.ModelCheckpoint(
         monitor='val_loss',
         dirpath=hparams.checkpoint_dir,
@@ -46,7 +46,7 @@ def main(hparams: Namespace) -> None:
         None
     """
     callbacks = configure_callbacks(hparams)
-#    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = True
 
     model = ComplexUNetLightning(
         input_channel=hparams.input_channel,
@@ -59,23 +59,12 @@ def main(hparams: Namespace) -> None:
         num_workers=hparams.num_workers,
         shuffle=hparams.shuffle,
     )
-    if hparams.checkpoint_path:
-        model = ComplexUNetLightning.load_from_checkpoint(
-            hparams.checkpoint_path,
-            input_channel=hparams.input_channel,
-            image_size=hparams.image_size,
-            filter_size=hparams.filter_size,
-            n_depth=hparams.n_depth,
-            dp_rate=hparams.dp_rate,
-            activation=hparams.activation,
-            batch_size=hparams.batch_size,
-            num_workers=hparams.num_workers,
-            shuffle=hparams.shuffle,
-            checkpoint_path=hparams.checkpoint_path  # Pass the checkpoint_path argument
-        )
-    profiler = PyTorchProfiler()
+    torch.compile(model, mode="reduce-overhead")
+    
+    #profiler = PyTorchProfiler(dirpath='./',
+    #                           filename='profiler_report')
     trainer = pl.Trainer(
-        profiler=profiler,
+    #    profiler=profiler,
         max_epochs=hparams.max_epochs,
         accelerator='cpu' if hparams.gpus is None else 'gpu',  # Set gpus to the number of GPUs you want to use or None for CPU
         enable_progress_bar=False,
@@ -83,7 +72,6 @@ def main(hparams: Namespace) -> None:
         fast_dev_run=hparams.fast_dev_run,
         log_every_n_steps=50,  # 50 is the default value
         precision=16,  # Enable mixed precision training why??
-        benchmark=True,
     )
     trainer.fit(model)
 
@@ -94,16 +82,15 @@ if __name__ == '__main__':
         'fast_dev_run': False,  # Set to True for a quick test run
         'image_size': 256,
         'batch_size':2,
-        'filter_size': 16,
-        'n_depth': 2,
+        'filter_size': 4,
+        'n_depth': 1,
         'dp_rate': 0.3,
         'gpus': None,  # Set to None for CPU
         'activation': nn.ReLU,
-        'max_epochs': 2,
+        'max_epochs': 5,
         'checkpoint_dir': './',
         'shuffle': True,  # Set to False to disable shuffling
         'num_workers': 4,  # Set the number of workers for data loading
-        'checkpoint_path': './',  # Set to the path of a checkpoint to resume training
     }
         
     hparams = Namespace(**args)
