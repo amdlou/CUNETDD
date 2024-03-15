@@ -4,8 +4,9 @@ from pytorch_msssim import ssim
 import torch
 import torch.nn.functional as F
 
-def custom_ssim_loss( targets: torch.Tensor, outputs: torch.Tensor,
-                    data_range: float = 255.0) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+
+def custom_ssim_loss(targets: torch.Tensor, outputs: torch.Tensor,
+                     data_range: float = 255.0) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Parameters:
     - y_true: The true image.

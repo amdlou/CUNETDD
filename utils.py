@@ -6,11 +6,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-
 def cross_correlate_fft(cb: torch.Tensor, pr: torch.Tensor) -> torch.Tensor:
     """
-    Perform cross-correlation of CBED (Convergent Beam Electron Diffraction) patterns
-    using Fast Fourier Transform (FFT).
+    Perform cross-correlation of CBED (Convergent Beam Electron Diffraction)
+    patterns using Fast Fourier Transform (FFT).
 
     Args:
         cb (torch.Tensor): CBED patterns tensor with shape (batch, channel, height, width).
@@ -33,7 +32,7 @@ def cross_correlate_fft(cb: torch.Tensor, pr: torch.Tensor) -> torch.Tensor:
     ccff = cbed_fft * torch.conj(probe_fft)
 
     # Normalize each cross-correlation
-    ccff_norm = torch.linalg.vector_norm(ccff, dim=(-2, -1), keepdim=True)
+    ccff_norm = torch.norm(ccff, dim=(-2, -1), keepdim=True)
     ccff_normalized = ccff / ccff_norm
 
     # Split into real and imaginary parts and concatenate along the channel dimension
@@ -42,6 +41,7 @@ def cross_correlate_fft(cb: torch.Tensor, pr: torch.Tensor) -> torch.Tensor:
     ccff_combined = torch.cat([ccff_real, ccff_imag], dim=1)  # Concatenating on channel dimension
 
     return ccff_combined
+
 
 def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
     """
@@ -56,7 +56,8 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
     """
     x = x.to(torch.float32)  # Convert to float32 for torch.fft
     input_channel = x.size(1) // 2
-    input_complex = torch.complex(x[:, :input_channel, :, :], x[:, input_channel:, :, :])
+    input_complex = torch.complex(x[:, :input_channel, :, :],
+                                  x[:, input_channel:, :, :])
 
     # Perform IFFT and shift
     output_complex = torch.fft.fftshift(torch.fft.ifft2(input_complex), dim=(-2, -1))
@@ -65,6 +66,7 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
     output = output_complex.real
 
     return output
+
 
 class Conv2D(nn.Module):
     """
@@ -88,8 +90,10 @@ class Conv2D(nn.Module):
         torch.Tensor: Output tensor after passing through the Conv2D module.
     """
 
-    def __init__(self, in_channels: int, n_filters: int, n_depth: int = 2, kernel_size: Union[int, Tuple[int, int]] = 3,
-                 activation: Optional[type[nn.Module]] = nn.ReLU, dp_rate: float = 0.1, batchnorm: bool = True) -> None:
+    def __init__(self, in_channels: int, n_filters: int, n_depth: int = 2,
+                 kernel_size: Union[int, Tuple[int, int]] = 3,
+                 activation: Optional[type[nn.Module]] = nn.ReLU,
+                 dp_rate: float = 0.1, batchnorm: bool = True) -> None:
         super(Conv2D, self).__init__()
         self.n_depth = n_depth
         self.activation = activation
@@ -99,7 +103,7 @@ class Conv2D(nn.Module):
         self.layers = nn.ModuleList()
         for _ in range(n_depth):
             self.layers.append(nn.Conv2d(in_channels, n_filters, kernel_size,
-                                        padding='same', bias=True))
+                                         padding='same', bias=True))
             if batchnorm:
                 self.layers.append(nn.BatchNorm2d(n_filters))
             if activation is not None:
@@ -120,6 +124,7 @@ class Conv2D(nn.Module):
             x = layer(x)
         return x
 
+
 class ConvComplex2D(nn.Module):
     """
     Convolutional layer for complex-valued inputs.
@@ -136,15 +141,19 @@ class ConvComplex2D(nn.Module):
         bias (bool, optional): If True, adds a learnable bias to the output. Default is True.
     """
 
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: Union[int, Tuple[int, int]], stride: Union[int, Tuple[int, int]] = 1,
-                padding: Union[int, Tuple[int, int], str] = 'same', dilation: Union[int, Tuple[int, int]] = 1, groups: int = 1, bias: bool = True) -> None:
+    def __init__(self, in_channels: int, out_channels: int,
+                 kernel_size: Union[int, Tuple[int, int]],
+                 stride: Union[int, Tuple[int, int]] = 1,
+                 padding: Union[int, Tuple[int, int], str] = 'same',
+                 dilation: Union[int, Tuple[int, int]] = 1, groups: int = 1,
+                 bias: bool = True) -> None:
         super(ConvComplex2D, self).__init__()
 
         # Initialize convolution layers for real and imaginary parts
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size,
-                                    stride, padding, dilation, groups, bias)
+                                   stride, padding, dilation, groups, bias)
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size,
-                                    stride, padding, dilation, groups, bias)
+                                   stride, padding, dilation, groups, bias)
 
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -187,7 +196,8 @@ class ComplexUpsample2d(nn.Module):
 
     """
 
-    def __init__(self, scale_factor: int = 2, mode: str = 'bilinear', align_corners: bool = False) -> None:
+    def __init__(self, scale_factor: int = 2, mode: str = 'bilinear',
+                 align_corners: bool = False) -> None:
         super(ComplexUpsample2d, self).__init__()
         self.scale_factor = scale_factor
         self.mode = mode
@@ -205,11 +215,14 @@ class ComplexUpsample2d(nn.Module):
         """
         real_input, imag_input = torch.chunk(x, 2, dim=1)
         real_output = F.interpolate(real_input, scale_factor=self.scale_factor,
-                                    mode=self.mode, align_corners=self.align_corners)
+                                    mode=self.mode,
+                                    align_corners=self.align_corners)
         imag_output = F.interpolate(imag_input, scale_factor=self.scale_factor,
-                                    mode=self.mode, align_corners=self.align_corners)
+                                    mode=self.mode,
+                                    align_corners=self.align_corners)
         output = torch.cat([real_output, imag_output], dim=1)
         return output
+
 
 class ConvSpec2D(nn.Module):
     """
@@ -231,20 +244,23 @@ class ConvSpec2D(nn.Module):
         Defaults to True.
     """
 
-    def __init__(self, in_channels: int, n_filters: int, n_depth: int = 1, kernel_size: Union[int, Tuple[int, int]] = 3,
-                 activation: Optional[type[nn.Module]] = nn.ReLU, dp_rate: float = 0.1, batchnorm: bool = True, bias: bool = True) -> None:
+    def __init__(self, in_channels: int, n_filters: int, n_depth: int = 1,
+                 kernel_size: Union[int, Tuple[int, int]] = 3,
+                 activation: Optional[type[nn.Module]] = nn.ReLU,
+                 dp_rate: float = 0.1, batchnorm: bool = True,
+                 bias: bool = True) -> None:
         super(ConvSpec2D, self).__init__()
         self.layers = nn.ModuleList()
 
         for _ in range(n_depth):
             conv_layer = ConvComplex2D(in_channels, n_filters, kernel_size,
-                                          padding='same', bias=bias)
+                                       padding='same', bias=bias)
             self.layers.append(conv_layer)
 
             # Following layers are now correctly placed after convolution as in the TensorFlow model
             if batchnorm:
                 # Assuming n_filters doubles after ConvComplex2D
-                self.layers.append(nn.BatchNorm2d(n_filters * 2))  
+                self.layers.append(nn.BatchNorm2d(n_filters * 2))
 
             if activation is not None:
                 self.layers.append(activation())
