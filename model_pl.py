@@ -52,7 +52,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.targets = []
         self.outputs = []
         self.sample_counter = 0
-        self.loss = custom_ssim_loss
+        self.loss_fn = custom_ssim_loss
 
     def forward(self, inputsa: torch.Tensor,
                 inputsb: torch.Tensor) -> torch.Tensor:
@@ -94,7 +94,7 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         inputsa, inputsb, targets = batch
         outputs = self(inputsa, inputsb)
-        total_loss, loss_1, loss_2 = self.loss(targets, outputs)
+        total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
         self.log('Train_loss_1', loss_1)
         self.log('Train_loss_2', loss_2)
         self.log('Train_loss', total_loss)
@@ -109,7 +109,7 @@ class ComplexUNetLightning(pl.LightningModule):
         inputsa, inputsb, targets = batch
         with torch.no_grad():
             outputs = self(inputsa, inputsb)
-            total_loss, loss_1, loss_2 = self.loss(targets, outputs)
+            total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
             self.log('val_loss_1', loss_1)
             self.log('val_loss_2', loss_2)
             self.log('val_loss', total_loss)
@@ -120,7 +120,7 @@ class ComplexUNetLightning(pl.LightningModule):
         with torch.no_grad():
             inputsa, inputsb, targets = batch
             outputs = self(inputsa, inputsb)
-            total_loss, loss_1, loss_2 = self.loss(targets, outputs)
+            total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
             self.log('test_loss_1', loss_1)
             self.log('test_loss_2', loss_2)
             self.log('test_loss', total_loss)
