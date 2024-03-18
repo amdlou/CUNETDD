@@ -99,9 +99,9 @@ class ComplexUNetLightning(pl.LightningModule):
         return {'loss': total_loss}
     
     def on_validation_epoch_start(self):
-        self.targets.clear()  # Clear the list of targets at the start of validation epoch
-        self.outputs.clear()  # Clear the list of outputs at the start of validation epoch
-        self.sample_counter = 0  # Reset the sample counter at the start of validation epoch
+        self.targets.clear()
+        self.outputs.clear()
+        self.sample_counter = 0
  
     def validation_step(self, batch, batch_idx):
         inputsa, inputsb, targets = batch
@@ -135,8 +135,8 @@ class ComplexUNetLightning(pl.LightningModule):
         full_dataset = ParseDataset(filepath='3fb20ba5-ed3d-4c55-9e35-cfaa97b85cdd_training.h5')
         full_dataset.read(batch_size=self.batch_size, shuffle=True, mode='default')
         # Split the dataset into training, validation, and test datasets
-        train_size = int(0.7 * len(full_dataset))  # Use 70% of the data for training
-        val_size = int(0.15 * len(full_dataset))  # Use 15% of the data for validation
+        train_size = int(0.7 * len(full_dataset)) 
+        val_size = int(0.15 * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
         print(f"Train size: {train_size}, Val size: {val_size}, Test size: {test_size}")
                 
