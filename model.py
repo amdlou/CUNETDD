@@ -1,4 +1,13 @@
-"""FCU_net model implementation. """
+"""FCU_net model implementation.
+   Disentangling multiple scattering with deep learning:
+   application to strain mapping from electron diffraction patterns
+   npj Computational Materials (2022)8:254 ;
+   https://doi.org/10.1038/s41524-022-00939-9
+   ComplexUNet a efficient complex-valued U-Net model for
+   electron diffraction pattern analysis.
+   The model is based on the U-Net architecture and is designed to
+   process complex-valued input data.
+"""
 from typing import Optional, Type
 import torch
 from torch import nn

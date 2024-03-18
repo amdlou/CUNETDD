@@ -1,4 +1,19 @@
-"""  Utility functions and classes for the complex-valued neural network. """
+""" Utility functions and classes for the complex-valued neural network.
+    This module contains cross-correlation functions
+    using Fast Fourier Transform (FFT),
+    Inverse Fast Fourier Transform (IFFT),
+    convolutional layers for complex-valued inputs,
+    upsampling layer for complex-valued inputs,
+    convolutional blocks with n_depth layers,
+    batch normalization,dropout, and activation,
+    class (ConvComplex2D) implements the complex convolution
+    between two complex vectors (W = A + iB) and input vector (X = x + iy).
+    The weights initialized in this class are complex and can be
+    convolved with complex inputs such as
+    fourier representation of image inputs...
+    Adapted from implementation of
+    complex convolutions in Deep Complex Networks by Trabelsi et. al. (2018
+"""
 from typing import Optional, Tuple, Union
 import torch
 import torch.fft
@@ -135,6 +150,7 @@ class Conv2D(nn.Module):
 class ConvComplex2D(nn.Module):
     """
     Convolutional layer for complex-valued inputs.
+
 
     Args:
         in_channels (int): Number of input channels.

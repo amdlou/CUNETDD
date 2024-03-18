@@ -1,4 +1,13 @@
-"""Module providing pytorch lightning for the complex FCU_net ."""
+"""Module providing pytorch lightning for the complex FCU_net.
+   It is designed to make research easier while providing
+   the tools to scale to production.
+   Lightning is a way to organize your PyTorch code to decouple
+   the science code from the engineering code.
+   Lightning is a PyTorch wrapper for high-performance AI research
+   that includes a simple, minimal interface and
+   a ton of functionality, including distributed training,
+   16-bit precision, automatic scaling, and more.
+"""
 from typing import Optional, Type
 import os
 from matplotlib import pyplot as plt
@@ -33,7 +42,7 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
 
 
 class ComplexUNetLightning(pl.LightningModule):
-    """Class representing model"""
+    """PyTorch Lightning module for the complex UNet model."""
     def __init__(self, input_channel: int, image_size: int, filter_size: int,
                  n_depth: int, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
