@@ -109,6 +109,7 @@ def main(params) -> None:
         benchmark=True,
     )
     trainer.fit(model)
+    trainer.test(model)
 
 
 if __name__ == '__main__':
