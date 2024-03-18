@@ -40,27 +40,20 @@ hparams = Namespace(
     gpus=None ,
     checkpoint_dir='./' ) # Set to None for CPU)
 callbacks = configure_callbacks(hparams)
-model = ComplexUNetLightning( #checkpoint_path="exp_f_0/FCUnet-epoch=492.ckpt",
-    input_channel=hparams.input_channel,
-                                                  #map_location=torch.device('cpu'), 
+model = ComplexUNetLightning.load_from_checkpoint( #checkpoint_path="exp_f_0/FCUnet-epoch=492.ckpt",
+                                                 input_channel=hparams.input_channel,
+                                                 #map_location=torch.device('cpu'), 
                                                  image_size=hparams.image_size,
-                                                  filter_size=hparams.filter_size,
-                                                  n_depth=hparams.n_depth,
-                                                  dp_rate=hparams.dp_rate,
-                                                  activation=hparams.activation,
-                                                  batch_size=hparams.batch_size,
+                                                 filter_size=hparams.filter_size,
+                                                 n_depth=hparams.n_depth,
+                                                 dp_rate=hparams.dp_rate,
+                                                 activation=hparams.activation,
+                                                 batch_size=hparams.batch_size,
                                                   
                                                   )
-#total_params = sum(p.numel() for p in model.parameters())
-#print(f"Total parameters in model: {total_params}")
 
-# Assuming the model expects a single-channel image of size 256x256
-input_size_1 = (hparams.input_channel, hparams.image_size, hparams.image_size)
-input_size_2 = (hparams.input_channel, hparams.image_size, hparams.image_size)
 
-# Print the summary
-# Note: If your model has specific requirements for the input shape, adjust `input_size` accordingly.
-#summary(model, input_size=[(1, *input_size_1),(1, *input_size_2)])
+
 
 
 profiler = PyTorchProfiler(

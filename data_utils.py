@@ -1,10 +1,11 @@
 """Exploring data by data_utils.py"""
 from pathlib import Path
 from typing import Union, List, Tuple
-import torch
-from torch.utils.data import Dataset, DataLoader, ConcatDataset
-import h5py
+from typing import Optional
 import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader, ConcatDataset, TensorDataset
+import h5py
 
 
 def normalize_data(data):
@@ -40,13 +41,15 @@ def normalize_data(data):
     
     return normalized_data
 
+
 class ParseDataset(Dataset):
     """
     A PyTorch dataset class for parsing and preparing datasets from HDF5 or TFRecords files.
 
     Args:
         filepath (str): The path to the dataset file or directory.
-        image_size (int or list): The size of the images in the dataset. Can be an integer (when height=width) or a list (height, width).
+        image_size (int or list): The size of the images in the dataset. 
+        Can be an integer (when height=width) or a list (height, width).
         out_channel (int): The number of output channels.
 
     Attributes:
@@ -54,7 +57,8 @@ class ParseDataset(Dataset):
         ds (torch.utils.data.ConcatDataset): The concatenated dataset.
         filepath (Path): The path to the dataset file or directory.
         file_lists (list): A list of file paths.
-        from_dir (bool): Indicates whether the dataset is loaded from a directory or a single file.
+        from_dir (bool): Indicates whether the dataset is loaded
+                                from a directory or a single file.
         ext (str): The file extension of the dataset file.
         height (int): The height of the images in the dataset.
         width (int): The width of the images in the dataset.
@@ -63,7 +67,8 @@ class ParseDataset(Dataset):
         one_hot (bool): Indicates whether the labels are one-hot encoded.
 
     Methods:
-        read(batch_size=256, shuffle=True, mode='default', task='system', one_hot=False):
+        read(batch_size=256, shuffle=True, mode='default',
+             task='system', one_hot=False):
             Reads and prepares the dataset for training or evaluation.
 
         prepare_dataset_from_tfrecords(batch_size, shuffle, mode):
@@ -81,10 +86,11 @@ class ParseDataset(Dataset):
     """
 
     def __init__(self, filepath: str = '',
-                  image_size: Union[int, List[int]] = 256,
-                    out_channel: int = 1):
+                 image_size: Union[int, List[int]] = 256,
+                 out_channel: int = 1):
+#       self.ds = None
+        self.ds: Optional[ConcatDataset] = None
         self.datasets = []
-        self.ds = None
         self.filepath = Path(filepath)
 
         if self.filepath.is_dir():
@@ -97,7 +103,7 @@ class ParseDataset(Dataset):
         self.ext = self.file_lists[0].suffix.lstrip('.')
         assert self.ext in ['h5', 'tfrecords'], "Currently only supports hdf5 or tfrecords as dataset"
 
-        assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
+        assert isinstance(image_size, (int, list)),'image_size must be integer (when height=width) or list (height, width)'
         if isinstance(image_size, int):
             self.height = self.width = image_size
         else:
@@ -105,7 +111,8 @@ class ParseDataset(Dataset):
 
         self.out_channel = out_channel
 
-    def read(self, batch_size: int = 256, shuffle: bool = True, mode: str = 'default') -> DataLoader:
+    def read(self, batch_size: int = 256, shuffle: bool = True,
+             mode: str = 'default') -> DataLoader:
         """
         Reads and prepares the dataset for training or evaluation.
 
@@ -117,13 +124,15 @@ class ParseDataset(Dataset):
             one_hot (bool): Indicates whether the labels are one-hot encoded.
 
         Returns:
-            torch.utils.data.DataLoader: The DataLoader object for the prepared dataset.
+            torch.utils.data.DataLoader:
+            The DataLoader object for the prepared dataset.
 
         """
-        self.ds = self.prepare_dataset_from_hdf5(shuffle, mode)
+        self.ds = self.prepare_dataset_from_hdf5(mode)
+        
         return DataLoader(self.ds, batch_size=batch_size, shuffle=shuffle)
 
-    def prepare_dataset_from_hdf5(self, shuffle: bool, mode: str) -> ConcatDataset:
+    def prepare_dataset_from_hdf5(self, mode: str) -> ConcatDataset:
         """
         Loads the dataset from HDF5 files.
 
@@ -134,38 +143,43 @@ class ParseDataset(Dataset):
 
         Returns:
             torch.utils.data.ConcatDataset: The concatenated dataset.
-
         """
+        
         for file in self.file_lists:
             try:
                 with h5py.File(file, 'r') as data:
-                    # Assuming data['dataMeas'] and data['dataPots'] are numpy arrays of shape (256, 256, 25)
-                    cbed = [torch.from_numpy(np.reshape(data['dataMeas'][..., i], (256, 256, 1))).unsqueeze(0).permute(0, 3, 1, 2) for i in range(25)]
-                    probe = torch.from_numpy(data['dataProbe'][...]).unsqueeze(0).unsqueeze(0)
-                    pot = [torch.from_numpy(np.reshape(data['dataPots'][..., i], (256, 256, 1))).unsqueeze(0).permute(0, 3, 1,2) for i in range(25)]
+                    # Assuming data['dataMeas'] and data['dataPots']
+                    # are numpy arrays of shape (256, 256, 25)
+                    data_meas = np.array(data['dataMeas'])
+                    data_probe = np.array(data['dataProbe'])
+                    data_pots = np.array(data['dataPots'])
+
+                    cbed = [torch.from_numpy(data_meas[..., i].reshape((256, 256, 1)))
+                            .unsqueeze(0).permute(0, 3, 1, 2)
+                            for i in range(25)]
+                    probe = torch.from_numpy(data_probe[...]).unsqueeze(0).unsqueeze(0)
+                    pot = [torch.from_numpy(data_pots[..., i].reshape((256, 256, 1)))
+                           .unsqueeze(0).permute(0, 3, 1, 2) for i in range(25)]
 
                     if mode == 'default':
-                        ds = torch.utils.data.TensorDataset(cbed[0], probe, pot[0])
+                        ds = TensorDataset(cbed[0], probe, pot[0])
                         self.datasets.append(ds)
                         for i in range(1, 25):
-                            ds = torch.utils.data.TensorDataset(cbed[i], probe, pot[i])
+                            ds = TensorDataset(cbed[i], probe, pot[i])
                             self.datasets.append(ds)
 
                     elif mode == 'norm':
                         max_val = torch.max(probe)
                         pot = [p / max_val for p in pot]
                         for i in range(25):
-                            ds = torch.utils.data.TensorDataset(cbed[i], probe, pot[i])
+                            ds = TensorDataset(cbed[i], probe, pot[i])
                             self.datasets.append(ds)
 
-                    self.ds = torch.utils.data.ConcatDataset(self.datasets)
+                    self.ds = ConcatDataset(self.datasets)
                     print(f"File: {file}, Num items: {len(self.ds)}")
             except OSError as e:
                 # If an error occurs, skip the file and print/log the error
                 print(f"Skipped corrupted or incompatible file. Error: {e}")
-        if shuffle:
-            indices = torch.randperm(len(self.ds))
-            self.ds = torch.utils.data.Subset(self.ds, indices)
 
         return self.ds
 
@@ -180,7 +194,8 @@ class ParseDataset(Dataset):
         total_len = sum([len(ds) for ds in self.datasets])
         return total_len
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor,
+                                             torch.Tensor]:
         """
         Returns the sample at the given index.
 
@@ -198,6 +213,10 @@ class ParseDataset(Dataset):
                 #print(pot.size)
                 return (cbed, probe, pot)
             idx -= len(ds)
+        
+        # Return a default value if the index is out of range
+        return (torch.Tensor(), torch.Tensor(), torch.Tensor())
+
 
 
 
