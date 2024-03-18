@@ -1,5 +1,21 @@
 """MAIN.PY: Main file for training
-the ComplexUNet model using PyTorch Lightning."""
+the ComplexUNet model using PyTorch Lightning.
+custom callbacks are used to monitor the training process.
+compile method uses openai/triton which converts the model to gpu machine code.
+compile imporves the performance of the model.
+benchmark help to find fastest algorithm for the model on cuda.
+Script is flexible and allows to control various hyperparameters
+and training settings.
+fast_dev_run helps to run the model for a quick test run.
+mixed precision is used to reduce the memory usage and improve the performance.
+easy to save and continue the training process.
+validation loss is monitored to evaluate the model performance while training.
+profiler is used to monitor the training process and find the bottlenecks.
+inference is faster and more efficient.
+Distributed training is also supported.
+Multi processing is used to load the data faster.
+accelerator is used to control the training process on cpu or gpu.
+"""
 
 from typing import Any, List, Dict
 from argparse import Namespace
