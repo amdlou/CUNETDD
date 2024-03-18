@@ -68,7 +68,21 @@ def main(params) -> None:
         None
     """
     callbacks = configure_callbacks(params)
-
+    # uncomment the following to load the model from a checkpoint
+    """
+    model = ComplexUNetLightning.load_from_checkpoint(
+                checkpoint_path=params.checkpoint_pth,
+                #map_location=torch.device('cpu'),
+                input_channel=params.input_channel,
+                image_size=params.image_size,
+                filter_size=params.filter_size,
+                n_depth=params.n_depth,
+                dp_rate=params.dp_rate,
+                activation=params.activation,
+                batch_size=params.batch_size,
+                num_workers=params.num_workers,
+                shuffle=params.shuffle)
+    """
     model = ComplexUNetLightning(
         input_channel=params.input_channel,
         image_size=params.image_size,
@@ -99,19 +113,20 @@ def main(params) -> None:
 
 if __name__ == '__main__':
     args: Dict[str, Any] = {
-        'input_channel': 1,
+        'input_channel': 1,  # Set the number of input channels
         'fast_dev_run': False,  # Set to True for a quick test run
-        'image_size': 256,
-        'batch_size': 2,
-        'filter_size': 4,
-        'n_depth': 1,
-        'dp_rate': 0.3,
+        'image_size': 256,  # Set the size of the input images
+        'batch_size': 2,  # Set the batch size
+        'filter_size': 4,  # Set the initial number of filters
+        'n_depth': 1,  # Set the depth of the network
+        'dp_rate': 0.3,  # Set the dropout rate
         'gpus': None,  # Set to None for CPU
-        'activation': nn.ReLU,
-        'max_epochs': 5,
-        'checkpoint_dir': './',
+        'activation': nn.ReLU,  # Note: Use the module directly
+        'max_epochs': 5,  # Set the maximum number of epochs
+        'checkpoint_dir': './',  # Set the directory for saving checkpoints
         'shuffle': True,  # Set to False to disable shuffling
         'num_workers': 4,  # Set the number of workers for data loading
+        'checkpoint_pth': None,  # Set to the path of the checkpoint to laod
     }
 
     hparams = Namespace(**args)
