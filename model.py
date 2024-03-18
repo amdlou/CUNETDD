@@ -1,7 +1,7 @@
 """FCU_net model implementation. """
 from typing import Optional, Type
 import torch
-import torch.nn as nn
+from torch import nn
 import numpy as np
 from utils import cross_correlate_fft, cross_correlate_ifft
 from utils import ConvSpec2D, Conv2D, ComplexUpsample2d
@@ -17,9 +17,10 @@ class ComplexUNet(nn.Module):
         filter_size (int): Size of the filters in the model.
         n_depth (int): Number of convolutional layers in each block.
         dp_rate (float, optional): Dropout rate. Defaults to 0.1.
-        activation (torch.nn.Module, optional): Activation function. Defaults to nn.ReLU.
-        batchnorm (bool, optional): Whether to use batch normalization. Defaults to True.
-        bias (bool, optional): Whether to include bias in the convolutional layers. Defaults to True.
+        activation (torch.nn.Module, optional): Activation function.
+        batchnorm (bool, optional): Whether to use batch normalization.
+        bias (bool, optional): Whether to include
+        bias in the convolutional layers.
     """
 
     def __init__(self,

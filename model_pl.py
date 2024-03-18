@@ -4,11 +4,9 @@ import os
 from matplotlib import pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
 import pytorch_lightning as pl
-from torch.utils.data import DataLoader, Dataset
-from torch.utils.data import random_split
+from torch.utils.data import DataLoader, Dataset, random_split
 from model import ComplexUNet
 from loss_utils import custom_ssim_loss
 from data_utils import ParseDataset

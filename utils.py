@@ -2,7 +2,7 @@
 from typing import Optional, Tuple, Union
 import torch
 import torch.fft
-import torch.nn as nn
+from torch import nn
 import torch.nn.functional as F
 
 
@@ -12,13 +12,17 @@ def cross_correlate_fft(cb: torch.Tensor, pr: torch.Tensor) -> torch.Tensor:
     patterns using Fast Fourier Transform (FFT).
 
     Args:
-        cb (torch.Tensor): CBED patterns tensor with shape (batch, channel, height, width).
-        pr (torch.Tensor): Probe patterns tensor with shape (batch, channel, height, width).
+        cb (torch.Tensor): CBED patterns tensor with shape
+        (batch, channel, height, width).
+        pr (torch.Tensor): Probe patterns tensor with shape
+        (batch, channel, height, width).
 
     Returns:
-        torch.Tensor: Combined cross-correlation tensor with shape (batch, 2 * channel, height, width).
+        torch.Tensor: Combined cross-correlation tensor with shape
+        (batch, 2 * channel, height, width).
     """
-    # Assuming cb and pr are torch tensors in the shape of (batch, channel, height, width)
+    # Assuming cb and pr are torch tensors in
+    # the shape of (batch, channel, height, width)
 
     # Shift the probe and CBED patterns to the origin
     pr_shifted = torch.fft.ifftshift(pr, dim=(-2, -1))
@@ -35,10 +39,11 @@ def cross_correlate_fft(cb: torch.Tensor, pr: torch.Tensor) -> torch.Tensor:
     ccff_norm = torch.norm(ccff, dim=(-2, -1), keepdim=True)
     ccff_normalized = ccff / ccff_norm
 
-    # Split into real and imaginary parts and concatenate along the channel dimension
+    # Split into real and imaginary parts
+    # and concatenate along the channel dimension
     ccff_real = ccff_normalized.real
     ccff_imag = ccff_normalized.imag
-    ccff_combined = torch.cat([ccff_real, ccff_imag], dim=1)  # Concatenating on channel dimension
+    ccff_combined = torch.cat([ccff_real, ccff_imag], dim=1)
 
     return ccff_combined
 
@@ -48,11 +53,14 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
     Perform cross-correlation using IFFT.
 
     Args:
-        x (torch.Tensor): Input tensor of shape (batch, 2 * channel, height, width),
-                          where the first half channels are real and the second half are imaginary parts.
+        x (torch.Tensor): Input tensor of shape
+        (batch, 2 * channel, height, width),
+        where the first half channels are real
+        and the second half are imaginary parts.
 
     Returns:
-        torch.Tensor: Output tensor after performing cross-correlation using IFFT.
+        torch.Tensor: Output tensor after performing
+        cross-correlation using IFFT.
     """
     x = x.to(torch.float32)  # Convert to float32 for torch.fft
     input_channel = x.size(1) // 2
@@ -70,22 +78,21 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
 
 class Conv2D(nn.Module):
     """
-    Custom Conv2D module that performs multiple convolutional operations 
+    Custom Conv2D module that performs multiple convolutional operations
     with optional batch normalization,
     activation, and dropout.
 
     Args:
         in_channels (int): Number of input channels.
         n_filters (int): Number of filters/output channels.
-        n_depth (int, optional): Number of convolutional layers to stack (default: 2).
-        kernel_size (int or tuple, optional): Size of the convolutional kernel (default: 3).
-        activation (torch.nn.Module, optional): Activation function to apply 
+        n_depth (int, optional): Number of convolutional layers
+        to stack (default: 2).
+        kernel_size (int or tuple, optional): Size of the convolutional kernel.
+        activation (torch.nn.Module, optional): Activation function to apply
         after each convolutional layer (default: torch.nn.ReLU).
-            
         dp_rate (float, optional): Dropout rate (default: 0.1).
-        batchnorm (bool, optional): Whether to apply batch normalization 
+        batchnorm (bool, optional): Whether to apply batch normalization
         after each convolutional layer (default: True).
-            
     Returns:
         torch.Tensor: Output tensor after passing through the Conv2D module.
     """
@@ -133,12 +140,12 @@ class ConvComplex2D(nn.Module):
         in_channels (int): Number of input channels.
         out_channels (int): Number of output channels.
         kernel_size (int or tuple): Size of the convolutional kernel.
-        stride (int or tuple, optional): Stride of the convolution. Default is 1.
-        padding (int or tuple or 'same', optional): Padding added to the input. Default is 'same'.
-        dilation (int or tuple, optional): Spacing between kernel elements. Default is 1.
-        groups (int, optional): Number of blocked connections from input channels to 
-        output channels. Default is 1.
-        bias (bool, optional): If True, adds a learnable bias to the output. Default is True.
+        stride (int or tuple, optional): Stride of the convolution.
+        padding (int or tuple or 'same', optional): Padding added to the input.
+        dilation (int or tuple, optional): Spacing between kernel elements.
+        groups (int, optional): Number of blocked connections
+        from input channels to output channels.
+        bias (bool, optional): If True, adds a learnable bias to the output.
     """
 
     def __init__(self, in_channels: int, out_channels: int,
@@ -160,14 +167,19 @@ class ConvComplex2D(nn.Module):
         Forward pass of the complex-valued convolutional layer.
 
         Args:
-            input_tensor (torch.Tensor): Input tensor of shape [batch_size, 2*in_channels, height, width].
-                The first half of the channels are real and the second half are imaginary.
+            input_tensor (torch.Tensor): Input tensor of shape
+            [batch_size, 2*in_channels, height, width].
+            The first half of the channels are
+            real and the second half are imaginary.
 
         Returns:
-            torch.Tensor: Output tensor of shape [batch_size, 2*out_channels, height, width].
-                The real and imaginary parts are concatenated in the channel dimension.
+            torch.Tensor: Output tensor of shape
+            [batch_size, 2*out_channels, height, width].
+            The real and imaginary parts are concatenated
+            in the channel dimension.
         """
-        # Split input tensor into real and imaginary parts based on the channel dimension
+        # Split input tensor into real and imaginary parts
+        # based on the channel dimension
         real_input, imag_input = torch.chunk(input_tensor, 2, dim=1)
 
         # Perform convolution on real and imaginary parts separately
@@ -175,7 +187,7 @@ class ConvComplex2D(nn.Module):
         imag_output = self.imag_conv(real_input) + self.real_conv(imag_input)
 
         # Concatenate the real and imaginary parts in the channel dimension
-        # Now, both real and imaginary outputs have out_channels channels, 
+        # Now, both real and imaginary outputs have out_channels channels
         # doubling the output channels
         return torch.cat([real_output, imag_output], dim=1)
 
@@ -187,7 +199,7 @@ class ComplexUpsample2d(nn.Module):
     Args:
         scale_factor (int): Upsampling scale factor.
         mode (str): Upsampling mode. Default is 'bilinear'.
-        align_corners (bool): Whether to align corners during upsampling. Default is False.
+        align_corners (bool): Whether to align corners during upsampling.
 
     Attributes:
         scale_factor (int): Upsampling scale factor.
@@ -202,16 +214,18 @@ class ComplexUpsample2d(nn.Module):
         self.scale_factor = scale_factor
         self.mode = mode
         self.align_corners = align_corners if mode in ['linear', 'bilinear', 'bicubic', 'trilinear'] else None
- 
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the ComplexUpsample2d module.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+            x (torch.Tensor): Input tensor of shape
+            (batch_size, channels, height, width).
 
         Returns:
-            torch.Tensor: Upsampled tensor of shape (batch_size, channels, new_height, new_width).
+            torch.Tensor: Upsampled tensor of shape
+            (batch_size, channels, new_height, new_width).
         """
         real_input, imag_input = torch.chunk(x, 2, dim=1)
         real_output = F.interpolate(real_input, scale_factor=self.scale_factor,
@@ -231,16 +245,15 @@ class ConvSpec2D(nn.Module):
     Args:
         in_channels (int): Number of input channels.
         n_filters (int): Number of filters.
-        n_depth (int, optional): Number of convolutional layers. Defaults to 1.
-        kernel_size (int, optional): Size of the convolutional kernel. Defaults to 3.
-        activation (torch.nn.Module, optional): Activation function to apply 
-        after each convolutional layer. Defaults to torch.nn.ReLU.
-            
+        n_depth (int, optional): Number of convolutional layers.
+        kernel_size (int, optional): Size of the convolutional kernel.
+        activation (torch.nn.Module, optional): Activation function to apply
+        after each convolutional layer. Defaults to torch.nn.ReLU
         dp_rate (float, optional): Dropout rate. Defaults to 0.1.
         batchnorm (bool, optional): Whether to apply batch normalization
-          after each convolutional layer.Defaults to True.
-            
-        bias (bool, optional): Whether to include bias in the convolutional layers.
+          after each convolutional layer.Defaults to True
+        bias (bool, optional): Whether to include bias
+        in the convolutional layers.
         Defaults to True.
     """
 
@@ -257,7 +270,8 @@ class ConvSpec2D(nn.Module):
                                        padding='same', bias=bias)
             self.layers.append(conv_layer)
 
-            # Following layers are now correctly placed after convolution as in the TensorFlow model
+            # Following layers are now correctly placed
+            # after convolution as in the TensorFlow model
             if batchnorm:
                 # Assuming n_filters doubles after ConvComplex2D
                 self.layers.append(nn.BatchNorm2d(n_filters * 2))

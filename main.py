@@ -1,9 +1,10 @@
-"""MAIN.PY: Main file for training the ComplexUNet model using PyTorch Lightning."""
+"""MAIN.PY: Main file for training
+the ComplexUNet model using PyTorch Lightning."""
 
 from typing import Any, List, Dict
 from argparse import Namespace
 import torch
-import torch.nn as nn
+from torch import nn
 from pytorch_lightning.profilers import PyTorchProfiler
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
@@ -51,7 +52,6 @@ def main(params) -> None:
         None
     """
     callbacks = configure_callbacks(params)
-    torch.backends.cudnn.benchmark = True
 
     model = ComplexUNetLightning(
         input_channel=params.input_channel,
@@ -64,18 +64,19 @@ def main(params) -> None:
         num_workers=params.num_workers,
         shuffle=params.shuffle,
     )
-    torch.compile(model, mode="reduce-overhead")
+    torch.compile(model)
 
     profiler = PyTorchProfiler(dirpath='./', filename='profiler_report')
     trainer = pl.Trainer(
         profiler=profiler,
         max_epochs=params.max_epochs,
-        accelerator='cpu' if params.gpus is None else 'gpu',  # Set gpus to the number of GPUs you want to use or None for CPU
+        accelerator='cpu' if params.gpus is None else 'gpu',
         enable_progress_bar=False,
         callbacks=callbacks,
         fast_dev_run=params.fast_dev_run,
         log_every_n_steps=50,  # 50 is the default value
-        precision=16,  # Enable mixed precision training why??
+        precision=16,
+        benchmark=True,
     )
     trainer.fit(model)
 
@@ -85,7 +86,7 @@ if __name__ == '__main__':
         'input_channel': 1,
         'fast_dev_run': False,  # Set to True for a quick test run
         'image_size': 256,
-        'batch_size':2,
+        'batch_size': 2,
         'filter_size': 4,
         'n_depth': 1,
         'dp_rate': 0.3,
@@ -97,5 +98,5 @@ if __name__ == '__main__':
         'num_workers': 4,  # Set the number of workers for data loading
     }
 
-    params = Namespace(**args)
-    main(params)
+    hparams = Namespace(**args)
+    main(hparams)
