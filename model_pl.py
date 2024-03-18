@@ -1,12 +1,13 @@
-"""Module providing pytorch lightning for the complex FCU_net.
-   It is designed to make research easier while providing
-   the tools to scale to production.
-   Lightning is a way to organize your PyTorch code to decouple
-   the science code from the engineering code.
-   Lightning is a PyTorch wrapper for high-performance AI research
-   that includes a simple, minimal interface and
-   a ton of functionality, including distributed training,
-   16-bit precision, automatic scaling, and more.
+"""
+Module providing pytorch lightning for the complex FCU_net.
+It is designed to make research easier while providing
+the tools to scale to production.
+Lightning is a way to organize your PyTorch code to decouple
+the science code from the engineering code.
+Lightning is a PyTorch wrapper for high-performance AI research
+that includes a simple, minimal interface and
+a ton of functionality, including distributed training,
+16-bit precision, automatic scaling, and more.
 """
 from typing import Optional, Type
 import os
