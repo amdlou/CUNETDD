@@ -57,7 +57,11 @@ def configure_callbacks(params) -> List[Callback]:
     return [early_stop, checkpoint]
 
 
+<<<<<<< HEAD
 def main(params: Namespace) -> None:
+=======
+def main(params) -> None:
+>>>>>>> Amin/Amin
     """
     Main function for training a ComplexUNet model.
 
@@ -128,10 +132,13 @@ if __name__ == '__main__':
         'shuffle': True,  # Set to False to disable shuffling
         'num_workers': 4,  # Set the number of workers for data loading
         'checkpoint_pth': None,  # Set to the path of the checkpoint to laod
+<<<<<<< HEAD
         'learning_rate': 0.001,  # Add the learning rate
         'train_dataset_dir': './train',  # Add the directory for the training
         'test_dataset_dir': './test',  # Add the directory for the test
         'val_dataset_dir': './val',  # Add the directory for the validation
+=======
+>>>>>>> Amin/Amin
     }
 
     hparams = Namespace(**args)

@@ -1,7 +1,10 @@
 """Exploring data by data_utils.py"""
 from pathlib import Path
 from typing import Union, List, Tuple
+<<<<<<< HEAD
 from typing import Optional
+=======
+>>>>>>> Amin/Amin
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, TensorDataset
@@ -88,8 +91,11 @@ class ParseDataset(Dataset):
     def __init__(self, filepath: str = '',
                  image_size: Union[int, List[int]] = 256,
                  out_channel: int = 1):
+<<<<<<< HEAD
 #       self.ds = None
         self.ds: Optional[ConcatDataset] = None
+=======
+>>>>>>> Amin/Amin
         self.datasets = []
         self.filepath = Path(filepath)
 
@@ -101,7 +107,7 @@ class ParseDataset(Dataset):
             self.from_dir = False
 
         self.ext = self.file_lists[0].suffix.lstrip('.')
-        assert self.ext in ['h5', 'tfrecords'], "Currently only supports hdf5 or tfrecords as dataset"
+        assert self.ext in ['h5', 'tfrecords'],"Currently only supports hdf5 or tfrecords as dataset"
 
         assert isinstance(image_size, (int, list)),'image_size must be integer (when height=width) or list (height, width)'
         if isinstance(image_size, int):
@@ -148,15 +154,23 @@ class ParseDataset(Dataset):
         for file in self.file_lists:
             try:
                 with h5py.File(file, 'r') as data:
+<<<<<<< HEAD
                     # Assuming data['dataMeas'] and data['dataPots']
                     # are numpy arrays of shape (256, 256, 25)
+=======
+                    # Assuming data['dataMeas'] and data['dataPots'] are numpy arrays of shape (256, 256, 25)
+>>>>>>> Amin/Amin
                     data_meas = np.array(data['dataMeas'])
                     data_probe = np.array(data['dataProbe'])
                     data_pots = np.array(data['dataPots'])
 
                     cbed = [torch.from_numpy(data_meas[..., i].reshape((256, 256, 1)))
+<<<<<<< HEAD
                             .unsqueeze(0).permute(0, 3, 1, 2)
                             for i in range(25)]
+=======
+                            .unsqueeze(0).permute(0, 3, 1, 2) for i in range(25)]
+>>>>>>> Amin/Amin
                     probe = torch.from_numpy(data_probe[...]).unsqueeze(0).unsqueeze(0)
                     pot = [torch.from_numpy(data_pots[..., i].reshape((256, 256, 1)))
                            .unsqueeze(0).permute(0, 3, 1, 2) for i in range(25)]
