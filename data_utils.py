@@ -73,6 +73,7 @@ class ParseDataset(Dataset):
                  image_size: Union[int, List[int]] = 256,
                  out_channel: int = 1):
 
+
         self.ds: Optional[ConcatDataset] = None
         self.datasets = []
         self.filepath = Path(filepath)
@@ -85,6 +86,8 @@ class ParseDataset(Dataset):
             self.from_dir = False
 
         self.ext = self.file_lists[0].suffix.lstrip('.')
+        assert self.ext in ['h5', 'tfrecords'], "Currently only supports hdf5 or tfrecords as dataset"
+        assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
         assert self.ext in ['h5', 'tfrecords'], "Currently only supports hdf5 or tfrecords as dataset"
         assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
         if isinstance(image_size, int):

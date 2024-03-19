@@ -10,7 +10,7 @@
     between two complex vectors (W = A + iB) and input vector (X = x + iy).
     The weights initialized in this class are complex and can be
     convolved with complex inputs such as
-    fourier representation of image inputs...
+    fourier representation of image inputs
     Adapted from implementation of
     complex convolutions in Deep Complex Networks by Trabelsi et. al. (2018)
 """
@@ -85,7 +85,8 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
                                   x[:, input_channel:, :, :])
 
     # Perform IFFT and shift
-    output_complex = torch.fft.fftshift(torch.fft.ifft2(input_complex), dim=(-2, -1))
+    output_complex = torch.fft.fftshift(torch.fft.ifft2(input_complex),
+                                        dim=(-2, -1))
 
     # Take the real part
     output = output_complex.real
