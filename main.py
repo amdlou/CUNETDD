@@ -71,7 +71,7 @@ def main(params: Namespace) -> None:
     if params.checkpoint_pth:
         model = ComplexUNetLightning.load_from_checkpoint(
             checkpoint_path=params.checkpoint_pth,
-            #map_location=torch.device('cpu'),
+            # map_location=torch.device('cpu'),
             input_channel=params.input_channel,
             image_size=params.image_size,
             filter_size=params.filter_size,
