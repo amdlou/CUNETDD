@@ -1,5 +1,5 @@
 """
-Module providing pytorch lightning for the complex FCU_net.
+Module providing pytorch lightning for complex FCU_net.
 It is designed to make research easier while providing
 the tools to scale to production.
 Lightning is a way to organize your PyTorch code to decouple
@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 from model import ComplexUNet
 from loss_utils import custom_ssim_loss
@@ -83,7 +83,7 @@ class ComplexUNetLightning(pl.LightningModule):
             The output of the complex UNet model.
         """
         return self.complex_unet(inputs_cb, inputs_pr)
- 
+
     def collect_samples(self, targets: torch.Tensor,
                         outputs: torch.Tensor, max_samples: int) -> None:
         """Function printing python version."""
@@ -115,12 +115,12 @@ class ComplexUNetLightning(pl.LightningModule):
         self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
         self.log('Train_loss', total_loss, on_step=False, on_epoch=True)
         return {'loss': total_loss}
-    
+
     def on_validation_epoch_start(self):
         self.targets.clear()
         self.outputs.clear()
         self.sample_counter = 0
- 
+
     def validation_step(self, batch, batch_idx):
         inputs_cb, inputs_pr, targets = batch
         with torch.no_grad():
@@ -146,19 +146,22 @@ class ComplexUNetLightning(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
-    
+ 
     def setup(self, stage=None):
 
         # Load the datasets from each respective folder
         self.train_dataset = ParseDataset(filepath=self.train_dataset_dir)
         self.val_dataset = ParseDataset(filepath=self.val_dataset_dir)
         self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-        
+    
         # Read the dataset
-        self.train_dataset.read(batch_size=self.batch_size, shuffle=True, mode='default')
-        self.val_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default')
-        self.test_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default')
-        
+        self.train_dataset.read(batch_size=self.batch_size,
+                                shuffle=True, mode='default')
+        self.val_dataset.read(batch_size=self.batch_size,
+                              shuffle=False, mode='default')
+        self.test_dataset.read(batch_size=self.batch_size,
+                               shuffle=False, mode='default')
+   
     def create_dataloader(self, dataset: Dataset) -> DataLoader:
 
         """Function printing python version."""
@@ -175,13 +178,13 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def test_dataloader(self):
         return self.create_dataloader(self.test_dataset)
-    
+   
     def on_train_epoch_end(self):
-        
+       
         avg_loss = self.trainer.callback_metrics['Train_loss']
         if isinstance(avg_loss, torch.Tensor):
             avg_loss = avg_loss.cpu().numpy()
-    
+   
         self.loss.append(avg_loss)
         self.epochs.append(self.current_epoch)
 
@@ -192,17 +195,19 @@ class ComplexUNetLightning(pl.LightningModule):
             plt.title('Training loss')
             plt.xlabel('Epoch')
             plt.ylabel('Loss')
-        
+ 
             # Ensure the directory for saving the plots exists
             save_dir = "training_plot"
             os.makedirs(save_dir, exist_ok=True)
-        
+   
             # Save the plot with a unique filename for each epoch
-            #plt.savefig(os.path.join(save_dir, f'training_loss_epoch_{self.current_epoch}.png'))
-        
-            # Clear the plot after saving to avoid memory issues with multiple plots
+            # plt.savefig(os.path.join(save_dir,
+            #            f'training_loss_epoch_{self.current_epoch}.png'))
+
+            # Clear the plot after saving
+            # to avoid memory issues with multiple plots
             plt.close()
-    
+
     def process_epoch_end(self, num_images_to_plot: int,
                           save_dir: str) -> None:
         """
@@ -223,7 +228,7 @@ class ComplexUNetLightning(pl.LightningModule):
         # Convert to Float32 before converting to numpy
         # Convert tensors to numpy arrays for plotting
         targets_np = targets.cpu().to(torch.float32).numpy()
-        outputs_np = outputs.cpu().to(torch.float32).numpy() 
+        outputs_np = outputs.cpu().to(torch.float32).numpy()
 
         # Save images
         self.save_images(targets_np, outputs_np, num_images_to_plot, save_dir)
@@ -236,7 +241,7 @@ class ComplexUNetLightning(pl.LightningModule):
         if self.current_epoch % 10 == 0:
             self.process_epoch_end(num_images_to_plot,
                                    f"validation_image_{self.current_epoch}")
-    
+
     def on_test_epoch_end(self, num_images_to_plot=10):
         self.process_epoch_end(num_images_to_plot, "test_image")
 
@@ -258,7 +263,8 @@ class ComplexUNetLightning(pl.LightningModule):
         num_images_to_plot = min(num_images_to_plot, len(targets_np))
 
         # Randomly select indices to save
-        indices_to_save = np.random.choice(len(targets_np), num_images_to_plot, replace=False)
+        indices_to_save = np.random.choice(len(targets_np),
+                                           num_images_to_plot, replace=False)
 
         # Ensure the directory for saving the images exists
         os.makedirs(save_dir, exist_ok=True)
@@ -266,10 +272,8 @@ class ComplexUNetLightning(pl.LightningModule):
         # Loop through the selected indices and save each image
         for i in indices_to_save:
             # Normalize the target and output images before saving
-            target_img = normalize_image(targets_np[i][0])  # Assuming single-channel images
+            target_img = normalize_image(targets_np[i][0])
             output_img = normalize_image(outputs_np[i][0])
-
-            # Save the target and output images directly without scaling them to 255
             plt.imsave(os.path.join(save_dir, f"target_{i}.png"), target_img,
                        cmap='gray', format='png')
             plt.imsave(os.path.join(save_dir, f"output_{i}.png"), output_img,
@@ -280,15 +284,18 @@ class ComplexUNetLightning(pl.LightningModule):
                                  figsize=(10, num_images_to_plot * 2))
         for j in range(num_images_to_plot):
             index = indices_to_save[j]
-            axes[j, 0].imshow(normalize_image(targets_np[index][0]), cmap='gray')
+            axes[j, 0].imshow(normalize_image(targets_np[index][0]),
+                              cmap='gray')
             axes[j, 0].set_title('Ground Truth')
             axes[j, 0].axis('off')
 
-            axes[j, 1].imshow(normalize_image(outputs_np[index][0]), cmap='gray')
+            axes[j, 1].imshow(normalize_image(outputs_np[index][0]),
+                              cmap='gray')
             axes[j, 1].set_title('Prediction')
             axes[j, 1].axis('off')
 
         plt.tight_layout()
         # Optionally, save the figure to a file
-        fig.savefig(os.path.join(save_dir, f'gt_vs_pred_{num_images_to_plot}.png'))
+        fig.savefig(os.path.join(save_dir,
+                                 f'gt_vs_pred_{num_images_to_plot}.png'))
         plt.close(fig)

@@ -3,8 +3,8 @@
    application to strain mapping from electron diffraction patterns
    npj Computational Materials (2022)8:254 ;
    https://doi.org/10.1038/s41524-022-00939-9
-   ComplexUNet a efficient complex-valued U-Net model for
-   electron diffraction pattern analysis.
+   ComplexUNet a efficient complex-valued U-Net model
+   for electron diffraction pattern analysis.
    The model is based on the U-Net architecture and is designed to
    process complex-valued input data.
 """
@@ -53,7 +53,7 @@ class ComplexUNet(nn.Module):
         current_channels = filter_size
         max_channels = 256
         current_image_size = image_size
-         
+
         # Encoder - Convolution followed by Pooling
         for _ in range(int(np.log2(image_size)) - 1):
             next_channels = min(current_channels * 2, max_channels)
@@ -63,21 +63,25 @@ class ComplexUNet(nn.Module):
             self.encoder.append(nn.MaxPool2d(kernel_size=2, stride=2))
             current_channels = next_channels
             current_image_size //= 2
-        
+
         # Decoder - Convolution followed by Upsampling
         for idx in range(len(self.encoder) // 2):
             if current_image_size < filter_size:
                 upsample_channels = max_channels
             else:
                 upsample_channels = current_channels // 2
-            if idx in range(1):  # The first decoder has the same number of input channels as the last encoder
+            if idx in range(1):
+                # The first decoder has the same number of
+                # input channels as the last encoder
                 self.decoder.append(ConvSpec2D(current_channels,
                                                upsample_channels, 3,
                                                n_depth, activation, dp_rate,
                                                bias, batchnorm))
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
                                                       mode='bilinear'))
-            else:  # The rest of the decoders have double the number of input channels
+            else:
+                # The rest of the decoders have double
+                # the number of input channels
                 self.decoder.append(ConvSpec2D(current_channels*2,
                                                upsample_channels, 3,
                                                n_depth, activation, dp_rate,
@@ -95,7 +99,7 @@ class ComplexUNet(nn.Module):
         self.final_conv = nn.Conv2d(filter_size, 1, kernel_size=3,
                                     padding=1, bias=bias)
         self.actv = nn.ReLU()
-    
+
     def forward(self,
                 inputsa: torch.Tensor,
                 inputsb: torch.Tensor) -> torch.Tensor:
@@ -114,7 +118,8 @@ class ComplexUNet(nn.Module):
         skips = []
 
         # Encoder path
-        for i in range(0, len(self.encoder), 2):  # Step by 2 to handle conv+pool pairs
+        # Step by 2 to handle conv+pool pairs
+        for i in range(0, len(self.encoder), 2):
             x = self.encoder[i](x)  # Convolution
             x = self.encoder[i + 1](x)  # Pooling
             skips.append(x)

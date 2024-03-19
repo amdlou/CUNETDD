@@ -1,7 +1,7 @@
 """prepare_dataset_from_hdf5 or TFRecords that loads data from HDF5 files.
- The data includes datameas with dimensions 256x256x25,
-                     dataprobe with dimensions 256x256,
-                     and datapots with dimensions 256x256x25."""
+ The data includes cbed with dimensions 256x256x25,
+                   probe with dimensions 256x256,
+                   and SFs with dimensions 256x256x25."""
 
 from pathlib import Path
 from typing import Union, List, Tuple

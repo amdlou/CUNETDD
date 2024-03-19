@@ -10,7 +10,7 @@
     between two complex vectors (W = A + iB) and input vector (X = x + iy).
     The weights initialized in this class are complex and can be
     convolved with complex inputs such as
-    fourier representation of image inputs...
+    fourier representation of image inputs
     Adapted from implementation of
     complex convolutions in Deep Complex Networks by Trabelsi et. al. (2018)
 """

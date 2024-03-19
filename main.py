@@ -1,5 +1,5 @@
 """MAIN.PY: Main file for training
-the ComplexUNet model using PyTorch Lightning.
+ComplexUNet model using PyTorch Lightning.
 custom callbacks are used to monitor the training process.
 compile method uses openai/triton which converts the model to gpu machine code.
 compile imporves the performance of the model.
@@ -84,8 +84,7 @@ def main(params: Namespace) -> None:
             shuffle=params.shuffle,
             val_dataset_dir=params.val_dataset_dir,
             train_dataset_dir=params.training_dataset_dir,
-            test_dataset_dir=params.test_dataset_dir
-        )
+            test_dataset_dir=params.test_dataset_dir)
     else:
         model = ComplexUNetLightning(
             input_channel=params.input_channel,
@@ -100,8 +99,7 @@ def main(params: Namespace) -> None:
             shuffle=params.shuffle,
             val_dataset_dir=params.val_dataset_dir,
             train_dataset_dir=params.train_dataset_dir,
-            test_dataset_dir=params.test_dataset_dir
-)
+            test_dataset_dir=params.test_dataset_dir)
     torch.compile(model)
 
     profiler = PyTorchProfiler(dirpath='./', filename='profiler_report')

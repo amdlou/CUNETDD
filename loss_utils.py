@@ -1,4 +1,4 @@
-""" This module contains custom loss functions.c
+""" This module contains custom loss functions.
     The custom_ssim_loss function calculates
     the SSIM and MSE between the target and output images.
     SSIM: Structural Similarity Index Measure
@@ -28,7 +28,8 @@ def custom_ssim_loss(
     - y_pred: The predicted image.
     - targets: The target tensor.
     - outputs: The output tensor.
-    - data_range: The range of the data. Default is 255.0 for images in the 0-255 range.
+    - data_range: The range of the data.
+      Default is 255.0 for images in the 0-255 range.
 
     Returns:
     - A tuple containing the SSIM loss, total loss, loss_1, and loss_2.
