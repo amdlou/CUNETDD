@@ -146,14 +146,13 @@ class ComplexUNetLightning(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
- 
+
     def setup(self, stage=None):
 
         # Load the datasets from each respective folder
         self.train_dataset = ParseDataset(filepath=self.train_dataset_dir)
         self.val_dataset = ParseDataset(filepath=self.val_dataset_dir)
         self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-    
         # Read the dataset
         self.train_dataset.read(batch_size=self.batch_size,
                                 shuffle=True, mode='default')
@@ -161,7 +160,7 @@ class ComplexUNetLightning(pl.LightningModule):
                               shuffle=False, mode='default')
         self.test_dataset.read(batch_size=self.batch_size,
                                shuffle=False, mode='default')
-   
+
     def create_dataloader(self, dataset: Dataset) -> DataLoader:
 
         """Function printing python version."""
@@ -178,13 +177,13 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def test_dataloader(self):
         return self.create_dataloader(self.test_dataset)
-   
+
+# The following code is for the visualization of the training loss
+
     def on_train_epoch_end(self):
-       
         avg_loss = self.trainer.callback_metrics['Train_loss']
         if isinstance(avg_loss, torch.Tensor):
             avg_loss = avg_loss.cpu().numpy()
-   
         self.loss.append(avg_loss)
         self.epochs.append(self.current_epoch)
 
@@ -195,11 +194,10 @@ class ComplexUNetLightning(pl.LightningModule):
             plt.title('Training loss')
             plt.xlabel('Epoch')
             plt.ylabel('Loss')
- 
+
             # Ensure the directory for saving the plots exists
             save_dir = "training_plot"
             os.makedirs(save_dir, exist_ok=True)
-   
             # Save the plot with a unique filename for each epoch
             # plt.savefig(os.path.join(save_dir,
             #            f'training_loss_epoch_{self.current_epoch}.png'))

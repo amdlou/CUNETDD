@@ -85,7 +85,8 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
                                   x[:, input_channel:, :, :])
 
     # Perform IFFT and shift
-    output_complex = torch.fft.fftshift(torch.fft.ifft2(input_complex), dim=(-2, -1))
+    output_complex = torch.fft.fftshift(torch.fft.ifft2(input_complex),
+                                        dim=(-2, -1))
 
     # Take the real part
     output = output_complex.real
