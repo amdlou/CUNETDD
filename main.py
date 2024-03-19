@@ -17,40 +17,16 @@ Multi processing is used to load the data faster.
 accelerator is used to control the training process on cpu or gpu.
 """
 
-"""MAIN.PY: Main file for training
-the ComplexUNet model using PyTorch Lightning.
-custom callbacks are used to monitor the training process.
-compile method uses openai/triton which converts the model to gpu machine code.
-compile imporves the performance of the model.
-benchmark help to find fastest algorithm for the model on cuda.
-Script is flexible and allows to control various hyperparameters
-and training settings.
-fast_dev_run helps to run the model for a quick test run.
-mixed precision is used to reduce the memory usage and improve the performance.
-easy to save and continue the training process.
-validation loss is monitored to evaluate the model performance while training.
-profiler is used to monitor the training process and find the bottlenecks.
-inference is faster and more efficient.
-Distributed training is also supported.
-Multi processing is used to load the data faster.
-accelerator is used to control the training process on cpu or gpu.
-"""
-
 from typing import Any, List, Dict
 from argparse import Namespace
 import torch
 from torch import nn
-from torch import nn
 from pytorch_lightning.profilers import PyTorchProfiler
-import pytorch_lightning as pl
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from model_pl import ComplexUNetLightning
 
-
-def configure_callbacks(params) -> List[Callback]:
 
 def configure_callbacks(params) -> List[Callback]:
     """
@@ -58,14 +34,12 @@ def configure_callbacks(params) -> List[Callback]:
 
     Args:
         params (Namespace): Hyperparameters for the training process.
-        params (Namespace): Hyperparameters for the training process.
 
     Returns:
         list: List of callbacks to be used during training.
     """
     early_stop = EarlyStopping(
-    early_stop = EarlyStopping(
-        monitor='val_loss',
+        monitor='Train_loss_2',
         min_delta=0.00,
         patience=1000,
         verbose=True,
@@ -73,18 +47,11 @@ def configure_callbacks(params) -> List[Callback]:
     )
 
     checkpoint = ModelCheckpoint(
-        mode='min'
-    )
-
-    checkpoint = ModelCheckpoint(
-        monitor='val_loss',
-        dirpath=params.checkpoint_dir,
+        monitor='Train_loss_2',
         dirpath=params.checkpoint_dir,
         filename='FCUnet-{epoch:02d}',
         save_top_k=1,
         verbose=True,
-        mode='min'
-    )
         mode='min'
     )
     return [early_stop, checkpoint]
@@ -96,66 +63,45 @@ def main(params: Namespace) -> None:
 
     Args:
         params (Namespace): Hyperparameters for training.
-        params (Namespace): Hyperparameters for training.
 
     Returns:
         None
     """
     callbacks = configure_callbacks(params)
-    # uncomment the following to load the model from a checkpoint
-    """
-    model = ComplexUNetLightning.load_from_checkpoint(
-                checkpoint_path=params.checkpoint_pth,
-                #map_location=torch.device('cpu'),
-                input_channel=params.input_channel,
-                image_size=params.image_size,
-                filter_size=params.filter_size,
-                n_depth=params.n_depth,
-                dp_rate=params.dp_rate,
-                activation=params.activation,
-                batch_size=params.batch_size,
-                num_workers=params.num_workers,
-                shuffle=params.shuffle)
-    """
-    callbacks = configure_callbacks(params)
-    # uncomment the following to load the model from a checkpoint
-    """
-    model = ComplexUNetLightning.load_from_checkpoint(
-                checkpoint_path=params.checkpoint_pth,
-                #map_location=torch.device('cpu'),
-                input_channel=params.input_channel,
-                image_size=params.image_size,
-                filter_size=params.filter_size,
-                n_depth=params.n_depth,
-                dp_rate=params.dp_rate,
-                activation=params.activation,
-                batch_size=params.batch_size,
-                num_workers=params.num_workers,
-                shuffle=params.shuffle)
-    """
-    model = ComplexUNetLightning(
-        input_channel=params.input_channel,
-        image_size=params.image_size,
-        filter_size=params.filter_size,
-        n_depth=params.n_depth,
-        dp_rate=params.dp_rate,
-        activation=params.activation,
-        batch_size=params.batch_size,
-        num_workers=params.num_workers,
-        shuffle=params.shuffle,
-        input_channel=params.input_channel,
-        image_size=params.image_size,
-        filter_size=params.filter_size,
-        n_depth=params.n_depth,
-        dp_rate=params.dp_rate,
-        activation=params.activation,
-        batch_size=params.batch_size,
-        num_workers=params.num_workers,
-        shuffle=params.shuffle,
-    )
-    torch.compile(model)
-
-    profiler = PyTorchProfiler(dirpath='./', filename='profiler_report')
+    if params.checkpoint_pth:
+        model = ComplexUNetLightning.load_from_checkpoint(
+            checkpoint_path=params.checkpoint_pth,
+            #map_location=torch.device('cpu'),
+            input_channel=params.input_channel,
+            image_size=params.image_size,
+            filter_size=params.filter_size,
+            n_depth=params.n_depth,
+            dp_rate=params.dp_rate,
+            activation=params.activation,
+            batch_size=params.batch_size,
+            learning_rate=params.learning_rate,
+            num_workers=params.num_workers,
+            shuffle=params.shuffle,
+            val_dataset_dir=params.val_dataset_dir,
+            train_dataset_dir=params.training_dataset_dir,
+            test_dataset_dir=params.test_dataset_dir
+        )
+    else:
+        model = ComplexUNetLightning(
+            input_channel=params.input_channel,
+            image_size=params.image_size,
+            filter_size=params.filter_size,
+            n_depth=params.n_depth,
+            dp_rate=params.dp_rate,
+            activation=params.activation,
+            batch_size=params.batch_size,
+            learning_rate=params.learning_rate,
+            num_workers=params.num_workers,
+            shuffle=params.shuffle,
+            val_dataset_dir=params.val_dataset_dir,
+            train_dataset_dir=params.train_dataset_dir,
+            test_dataset_dir=params.test_dataset_dir
+)
     torch.compile(model)
 
     profiler = PyTorchProfiler(dirpath='./', filename='profiler_report')
@@ -163,28 +109,21 @@ def main(params: Namespace) -> None:
         profiler=profiler,
         max_epochs=params.max_epochs,
         accelerator='cpu' if params.gpus is None else 'gpu',
-        profiler=profiler,
-        max_epochs=params.max_epochs,
-        accelerator='cpu' if params.gpus is None else 'gpu',
         enable_progress_bar=False,
         callbacks=callbacks,
-        fast_dev_run=params.fast_dev_run,
         fast_dev_run=params.fast_dev_run,
         log_every_n_steps=50,  # 50 is the default value
         precision=16,
         benchmark=True,
-    )
-        precision=16,
-        benchmark=True,
+        deterministic=False,
+        sync_batchnorm=False
     )
     trainer.fit(model)
-    trainer.test(model)
     trainer.test(model)
 
 
 if __name__ == '__main__':
     args: Dict[str, Any] = {
-        'input_channel': 1,  # Set the number of input channels
         'input_channel': 1,  # Set the number of input channels
         'fast_dev_run': False,  # Set to True for a quick test run
         'image_size': 256,  # Set the size of the input images
@@ -192,15 +131,7 @@ if __name__ == '__main__':
         'filter_size': 4,  # Set the initial number of filters
         'n_depth': 1,  # Set the depth of the network
         'dp_rate': 0.3,  # Set the dropout rate
-        'image_size': 256,  # Set the size of the input images
-        'batch_size': 2,  # Set the batch size
-        'filter_size': 4,  # Set the initial number of filters
-        'n_depth': 1,  # Set the depth of the network
-        'dp_rate': 0.3,  # Set the dropout rate
         'gpus': None,  # Set to None for CPU
-        'activation': nn.ReLU,  # Note: Use the module directly
-        'max_epochs': 5,  # Set the maximum number of epochs
-        'checkpoint_dir': './',  # Set the directory for saving checkpoints
         'activation': nn.ReLU,  # Note: Use the module directly
         'max_epochs': 5,  # Set the maximum number of epochs
         'checkpoint_dir': './',  # Set the directory for saving checkpoints
@@ -212,8 +143,11 @@ if __name__ == '__main__':
         'test_dataset_dir': './test',  # Add the directory for the test
         'val_dataset_dir': './val',  # Add the directory for the validation
     }
+    """
+    the hyperparameters are loaded from a JSON or YAML file named config.json.
+        with open('config.json') as f:
+            args = json.load(f)
 
- 
+    """
     hparams = Namespace(**args)
     main(hparams)
-
