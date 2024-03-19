@@ -12,7 +12,7 @@
     convolved with complex inputs such as
     fourier representation of image inputs...
     Adapted from implementation of
-    complex convolutions in Deep Complex Networks by Trabelsi et. al. (2018
+    complex convolutions in Deep Complex Networks by Trabelsi et. al. (2018)
 """
 from typing import Optional, Tuple, Union
 import torch
@@ -21,7 +21,9 @@ from torch import nn
 import torch.nn.functional as F
 
 
-def cross_correlate_fft(cb: torch.Tensor, pr: torch.Tensor) -> torch.Tensor:
+def cross_correlate_fft(
+    cbed: torch.Tensor, probe: torch.Tensor
+) -> torch.Tensor:
     """
     Perform cross-correlation of CBED (Convergent Beam Electron Diffraction)
     patterns using Fast Fourier Transform (FFT).
@@ -40,8 +42,8 @@ def cross_correlate_fft(cb: torch.Tensor, pr: torch.Tensor) -> torch.Tensor:
     # the shape of (batch, channel, height, width)
 
     # Shift the probe and CBED patterns to the origin
-    pr_shifted = torch.fft.ifftshift(pr, dim=(-2, -1))
-    cb_shifted = torch.fft.ifftshift(cb, dim=(-2, -1))
+    pr_shifted = torch.fft.ifftshift(probe, dim=(-2, -1))
+    cb_shifted = torch.fft.ifftshift(cbed, dim=(-2, -1))
 
     # Perform FFT
     cbed_fft = torch.fft.fft2(cb_shifted.to(torch.complex64))
@@ -229,7 +231,9 @@ class ComplexUpsample2d(nn.Module):
         super(ComplexUpsample2d, self).__init__()
         self.scale_factor = scale_factor
         self.mode = mode
-        self.align_corners = align_corners if mode in ['linear', 'bilinear', 'bicubic', 'trilinear'] else None
+        modes = ['linear', 'bilinear', 'bicubic', 'trilinear']
+        condition = mode in modes
+        self.align_corners = align_corners if condition else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
