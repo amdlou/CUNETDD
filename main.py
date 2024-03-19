@@ -40,7 +40,6 @@ def configure_callbacks(params) -> List[Callback]:
     """
     early_stop = EarlyStopping(
         monitor='Train_loss_2',
-        monitor='Train_loss_2',
         min_delta=0.00,
         patience=1000,
         verbose=True,
@@ -48,7 +47,6 @@ def configure_callbacks(params) -> List[Callback]:
     )
 
     checkpoint = ModelCheckpoint(
-        monitor='Train_loss_2',
         monitor='Train_loss_2',
         dirpath=params.checkpoint_dir,
         filename='FCUnet-{epoch:02d}',
@@ -103,7 +101,7 @@ def main(params: Namespace) -> None:
             val_dataset_dir=params.val_dataset_dir,
             train_dataset_dir=params.train_dataset_dir,
             test_dataset_dir=params.test_dataset_dir
-)
+        )
     torch.compile(model)
 
     profiler = PyTorchProfiler(dirpath='./', filename='profiler_report')
