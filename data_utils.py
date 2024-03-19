@@ -106,8 +106,6 @@ class ParseDataset(Dataset):
             batch_size (int): The batch size for the DataLoader.
             shuffle (bool): Indicates whether to shuffle the dataset.
             mode (str): The mode for preparing the dataset.
-            task (str): The task associated with the dataset.
-            one_hot (bool): Indicates whether the labels are one-hot encoded.
 
         Returns:
             torch.utils.data.DataLoader:

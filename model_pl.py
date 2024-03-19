@@ -10,13 +10,11 @@ a ton of functionality, including distributed training,
 16-bit precision, automatic scaling, and more.
 """
 from typing import Optional, Type, List
-from typing import Optional, Type, List
 import os
 from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 from model import ComplexUNet
@@ -45,14 +43,32 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
 
 
 class ComplexUNetLightning(pl.LightningModule):
-    """PyTorch Lightning module for the complex UNet model."""
+    """
+    LightningModule implementation for the ComplexUNet model.
+
+    Args:
+        input_channel (int): Number of input channels.
+        image_size (int): Size of the input image.
+        filter_size (int): Size of the filters in the model.
+        n_depth (int): Number of downsampling and upsampling blocks in the model.
+        val_dataset_dir (str): Directory path of the validation dataset.
+        train_dataset_dir (str): Directory path of the training dataset.
+        test_dataset_dir (str): Directory path of the test dataset.
+        dp_rate (float, optional): Dropout rate. Defaults to 0.3.
+        activation (Optional[Type[nn.Module]], optional): Activation function. Defaults to nn.ReLU.
+        batch_size (int, optional): Batch size. Defaults to 256.
+        learning_rate (float, optional): Learning rate. Defaults to 0.001.
+        num_workers (int, optional): Number of workers for data loading. Defaults to 4.
+        shuffle (bool, optional): Whether to shuffle the data during training. Defaults to True.
+    """
+
     def __init__(self, input_channel: int, image_size: int, filter_size: int,
                  n_depth: int, val_dataset_dir, train_dataset_dir,
                  test_dataset_dir, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
                  num_workers: int = 4, shuffle: bool = True) -> None:
-        super(ComplexUNetLightning, self).__init__()
+        super().__init__()
         self.complex_unet = ComplexUNet(input_channel, image_size, filter_size,
                                         n_depth, dp_rate, activation)
         self.batch_size = batch_size
@@ -79,18 +95,27 @@ class ComplexUNetLightning(pl.LightningModule):
         Forward pass of the model.
 
         Args:
-            inputs_cb: The input for stream cb.
-            inputs_pr: The input for stream pr.
+            inputs_cb (torch.Tensor): The input for stream cb.
+            inputs_pr (torch.Tensor): The input for stream pr.
 
         Returns:
-            The output of the complex UNet model.
+            torch.Tensor: The output of the complex UNet model.
         """
         return self.complex_unet(inputs_cb, inputs_pr)
 
-
     def collect_samples(self, targets: torch.Tensor,
                         outputs: torch.Tensor, max_samples: int) -> None:
-        """Function printing python version."""
+        """
+        Collects a specified number of samples from the targets and outputs tensors.
+
+        Args:
+            targets (torch.Tensor): The target tensor containing the ground truth values.
+            outputs (torch.Tensor): The output tensor containing the predicted values.
+            max_samples (int): The maximum number of samples to collect.
+
+        Returns:
+            None
+        """
         with torch.no_grad():
             samples_to_collect = min(targets.size(0),
                                      max_samples - self.sample_counter)
@@ -100,47 +125,77 @@ class ComplexUNetLightning(pl.LightningModule):
                 self.sample_counter += samples_to_collect
 
     def setup(self, stage=None):
+        """
+        Set up the datasets for training, validation, and testing.
 
+        Args:
+            stage (str, optional): Stage of training. Defaults to None.
+
+        Returns:
+            None
+        """
         # Load the datasets from each respective folder
         self.train_dataset = ParseDataset(filepath=self.train_dataset_dir)
         self.val_dataset = ParseDataset(filepath=self.val_dataset_dir)
         self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-        
+
         # Read the dataset
         self.train_dataset.read(batch_size=self.batch_size, shuffle=True, mode='default')
         self.val_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default')
         self.test_dataset.read(batch_size=self.batch_size, shuffle=False, mode='default')
-        
-    def create_dataloader(self, dataset: Dataset) -> DataLoader:
 
-        """Function printing python version."""
+    def create_dataloader(self, dataset: Dataset) -> DataLoader:
+        """
+        Create a DataLoader for the given dataset.
+
+        Args:
+            dataset (Dataset): The dataset to create a DataLoader for.
+
+        Returns:
+            DataLoader: The created DataLoader.
+        """
         return DataLoader(dataset, batch_size=self.batch_size,
                           shuffle=self.shuffle, drop_last=True,
                           num_workers=self.num_workers,
                           persistent_workers=True, pin_memory=True)
 
     def train_dataloader(self):
+        """
+        Get the DataLoader for the training dataset.
+
+        Returns:
+            DataLoader: The DataLoader for the training dataset.
+        """
         return self.create_dataloader(self.train_dataset)
 
     def val_dataloader(self):
+        """
+        Get the DataLoader for the validation dataset.
+
+        Returns:
+            DataLoader: The DataLoader for the validation dataset.
+        """
         return self.create_dataloader(self.val_dataset)
 
     def test_dataloader(self):
+        """
+        Get the DataLoader for the test dataset.
+
+        Returns:
+            DataLoader: The DataLoader for the test dataset.
+        """
         return self.create_dataloader(self.test_dataset)
 
-
     def training_step(self, batch, batch_idx):
-
         """
-        Performs a single training step.
+        Perform a single training step.
 
         Args:
             batch: The input batch containing inputs_cb, inputsB, and targets.
             batch_idx: The index of the current batch.
 
         Returns:
-            A dictionary containing the loss value.
-
+            Dict[str, torch.Tensor]: A dictionary containing the loss value.
         """
         inputs_cb, inputs_pr, targets = batch
         outputs = self(inputs_cb, inputs_pr)
@@ -151,11 +206,27 @@ class ComplexUNetLightning(pl.LightningModule):
         return {'loss': total_loss}
 
     def on_validation_epoch_start(self):
+        """
+        Perform actions at the start of each validation epoch.
+
+        Returns:
+            None
+        """
         self.targets.clear()
         self.outputs.clear()
         self.sample_counter = 0
- 
+
     def validation_step(self, batch, batch_idx):
+        """
+        Perform a validation step.
+
+        Args:
+            batch: The input batch containing inputs_cb, inputsB, and targets.
+            batch_idx: The index of the current batch.
+
+        Returns:
+            Dict[str, torch.Tensor]: A dictionary containing the validation loss value.
+        """
         inputs_cb, inputs_pr, targets = batch
         with torch.no_grad():
             outputs = self(inputs_cb, inputs_pr)
@@ -167,6 +238,16 @@ class ComplexUNetLightning(pl.LightningModule):
             return {'val_loss': loss_2}
 
     def test_step(self, batch, batch_idx):
+        """
+        Perform a test step.
+
+        Args:
+            batch: The input batch containing inputs_cb, inputsB, and targets.
+            batch_idx: The index of the current batch.
+
+        Returns:
+            None
+        """
         with torch.no_grad():
             inputs_cb, inputs_pr, targets = batch
             outputs = self(inputs_cb, inputs_pr)
@@ -177,16 +258,15 @@ class ComplexUNetLightning(pl.LightningModule):
             self.collect_samples(targets, outputs, MAX_SAMPLES)
             return {'test_loss': total_loss}
 
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
-    
+
     def on_train_epoch_end(self):
         avg_loss = self.trainer.callback_metrics['Train_loss']
         if isinstance(avg_loss, torch.Tensor):
             avg_loss = avg_loss.cpu().numpy()
-    
+
         self.loss.append(avg_loss)
         self.epochs.append(self.current_epoch)
 
@@ -197,17 +277,17 @@ class ComplexUNetLightning(pl.LightningModule):
             plt.title('Training loss')
             plt.xlabel('Epoch')
             plt.ylabel('Loss')
-        
+     
             # Ensure the directory for saving the plots exists
             save_dir = "training_plot"
             os.makedirs(save_dir, exist_ok=True)
-        
+
             # Save the plot with a unique filename for each epoch
             #plt.savefig(os.path.join(save_dir, f'training_loss_epoch_{self.current_epoch}.png'))
-        
+
             # Clear the plot after saving to avoid memory issues with multiple plots
             plt.close()
-    
+
     def process_epoch_end(self, num_images_to_plot: int,
                           save_dir: str) -> None:
         """
@@ -228,7 +308,7 @@ class ComplexUNetLightning(pl.LightningModule):
         # Convert to Float32 before converting to numpy
         # Convert tensors to numpy arrays for plotting
         targets_np = targets.cpu().to(torch.float32).numpy()
-        outputs_np = outputs.cpu().to(torch.float32).numpy() 
+        outputs_np = outputs.cpu().to(torch.float32).numpy()
 
         # Save images
         self.save_images(targets_np, outputs_np, num_images_to_plot, save_dir)

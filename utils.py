@@ -282,7 +282,7 @@ class ConvSpec2D(nn.Module):
                  activation: Optional[type[nn.Module]] = nn.ReLU,
                  dp_rate: float = 0.1, batchnorm: bool = True,
                  bias: bool = True) -> None:
-        super(ConvSpec2D, self).__init__()
+        super().__init__()
         self.layers = nn.ModuleList()
 
         for _ in range(n_depth):
