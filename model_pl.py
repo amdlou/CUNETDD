@@ -49,10 +49,7 @@ class ComplexUNetLightning(pl.LightningModule):
     def __init__(self, input_channel: int, image_size: int, filter_size: int,
                  n_depth: int, val_dataset_dir, train_dataset_dir,
                  test_dataset_dir, dp_rate: float = 0.3,
-                 n_depth: int, val_dataset_dir, train_dataset_dir,
-                 test_dataset_dir, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
-                 batch_size: int = 256, learning_rate: float = 0.001,
                  batch_size: int = 256, learning_rate: float = 0.001,
                  num_workers: int = 4, shuffle: bool = True) -> None:
         super(ComplexUNetLightning, self).__init__()
@@ -67,17 +64,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.targets: List[torch.Tensor] = []
         self.outputs: List[torch.Tensor] = []
         self.learning_rate = learning_rate
-        self.loss: List[float] = []
-        self.epochs: List[int] = []
-        self.targets: List[torch.Tensor] = []
-        self.outputs: List[torch.Tensor] = []
         self.sample_counter = 0
-        self.val_dataset_dir = val_dataset_dir
-        self.train_dataset_dir = train_dataset_dir
-        self.test_dataset_dir = test_dataset_dir
-        self.train_dataset = None
-        self.val_dataset = None
-        self.test_dataset = None
         self.val_dataset_dir = val_dataset_dir
         self.train_dataset_dir = train_dataset_dir
         self.test_dataset_dir = test_dataset_dir
@@ -88,23 +75,18 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def forward(self, inputs_cb: torch.Tensor,
                 inputs_pr: torch.Tensor) -> torch.Tensor:
-    def forward(self, inputs_cb: torch.Tensor,
-                inputs_pr: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the model.
 
         Args:
-            inputs_cb: The input for stream a.
-            inputs_pr: The input for stream b.
-            inputs_cb: The input for stream a.
-            inputs_pr: The input for stream b.
+            inputs_cb: The input for stream cb.
+            inputs_pr: The input for stream pr.
 
         Returns:
             The output of the complex UNet model.
         """
         return self.complex_unet(inputs_cb, inputs_pr)
 
-        return self.complex_unet(inputs_cb, inputs_pr)
 
     def collect_samples(self, targets: torch.Tensor,
                         outputs: torch.Tensor, max_samples: int) -> None:
@@ -154,19 +136,12 @@ class ComplexUNetLightning(pl.LightningModule):
 
         Args:
             batch: The input batch containing inputs_cb, inputsB, and targets.
-            batch: The input batch containing inputs_cb, inputsB, and targets.
             batch_idx: The index of the current batch.
 
         Returns:
             A dictionary containing the loss value.
 
         """
-        inputs_cb, inputs_pr, targets = batch
-        outputs = self(inputs_cb, inputs_pr)
-        total_loss, loss_1, loss_2 = custom_ssim_loss(targets, outputs)
-        self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
-        self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
-        self.log('Train_loss', total_loss, on_step=False, on_epoch=True)
         inputs_cb, inputs_pr, targets = batch
         outputs = self(inputs_cb, inputs_pr)
         total_loss, loss_1, loss_2 = custom_ssim_loss(targets, outputs)
@@ -182,9 +157,7 @@ class ComplexUNetLightning(pl.LightningModule):
  
     def validation_step(self, batch, batch_idx):
         inputs_cb, inputs_pr, targets = batch
-        inputs_cb, inputs_pr, targets = batch
         with torch.no_grad():
-            outputs = self(inputs_cb, inputs_pr)
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
             self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
@@ -197,8 +170,6 @@ class ComplexUNetLightning(pl.LightningModule):
         with torch.no_grad():
             inputs_cb, inputs_pr, targets = batch
             outputs = self(inputs_cb, inputs_pr)
-            inputs_cb, inputs_pr, targets = batch
-            outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
             self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
             self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
@@ -208,7 +179,6 @@ class ComplexUNetLightning(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
     
@@ -255,7 +225,6 @@ class ComplexUNetLightning(pl.LightningModule):
         targets = torch.cat(self.targets, dim=0)
         outputs = torch.cat(self.outputs, dim=0)
 
-        # Convert to Float32 before converting to numpy
         # Convert to Float32 before converting to numpy
         # Convert tensors to numpy arrays for plotting
         targets_np = targets.cpu().to(torch.float32).numpy()
