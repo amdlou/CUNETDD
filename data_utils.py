@@ -1,7 +1,7 @@
 """prepare_dataset_from_hdf5 or TFRecords that loads data from HDF5 files.
- The data includes datameas with dimensions 256x256x25, 
- dataprobe with dimensions 256x256,
- and datapots with dimensions 256x256x25."""
+ The data includes datameas with dimensions 256x256x25,
+                     dataprobe with dimensions 256x256,
+                     and datapots with dimensions 256x256x25."""
 
 from pathlib import Path
 from typing import Union, List, Tuple
@@ -32,17 +32,14 @@ def normalize_data(data):
 
     # Find the maximum value for each image in the batch
     max_vals = data.view(data.size(0), -1).max(dim=1)[0].view(-1, 1, 1, 1)
-    
     # Avoid division by zero for images with all pixels equal to zero
     max_vals[max_vals == 0] = 1
-    
     # Normalize each image individually
     normalized_data = data / max_vals
 
     # Remove the batch dimension if it was added
     if was_singleton:
         normalized_data = normalized_data.squeeze(0)
-    
     return normalized_data
 
 
@@ -89,8 +86,7 @@ class ParseDataset(Dataset):
 
         self.ext = self.file_lists[0].suffix.lstrip('.')
         assert self.ext in ['h5', 'tfrecords'], "Currently only supports hdf5 or tfrecords as dataset"
-
-        assert isinstance(image_size, (int, list)),'image_size must be integer (when height=width) or list (height, width)'
+        assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
         if isinstance(image_size, int):
             self.height = self.width = image_size
         else:
@@ -116,7 +112,6 @@ class ParseDataset(Dataset):
 
         """
         self.ds = self.prepare_dataset_from_hdf5(mode)
-        
         return DataLoader(self.ds, batch_size=batch_size, shuffle=shuffle)
 
     def prepare_dataset_from_hdf5(self, mode: str) -> ConcatDataset:
@@ -199,10 +194,5 @@ class ParseDataset(Dataset):
                 #pot = normalize_data(pot)
                 return (cbed, probe, pot)
             idx -= len(ds)
-        
         # Return a default value if the index is out of range
         return (torch.Tensor(), torch.Tensor(), torch.Tensor())
-
-
-
-

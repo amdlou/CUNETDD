@@ -39,7 +39,7 @@ def configure_callbacks(params) -> List[Callback]:
         list: List of callbacks to be used during training.
     """
     early_stop = EarlyStopping(
-        monitor='val_loss',
+        monitor='Train_loss_2',
         min_delta=0.00,
         patience=1000,
         verbose=True,
@@ -47,18 +47,13 @@ def configure_callbacks(params) -> List[Callback]:
     )
 
     checkpoint = ModelCheckpoint(
-        mode='min'
-    )
-
-    checkpoint = ModelCheckpoint(
-        monitor='val_loss',
+        monitor='Train_loss_2',
         dirpath=params.checkpoint_dir,
         filename='FCUnet-{epoch:02d}',
         save_top_k=1,
         verbose=True,
         mode='min'
     )
-
     return [early_stop, checkpoint]
 
 
@@ -72,9 +67,7 @@ def main(params: Namespace) -> None:
     Returns:
         None
     """
-
     callbacks = configure_callbacks(params)
-
     if params.checkpoint_pth:
         model = ComplexUNetLightning.load_from_checkpoint(
             checkpoint_path=params.checkpoint_pth,
@@ -86,8 +79,12 @@ def main(params: Namespace) -> None:
             dp_rate=params.dp_rate,
             activation=params.activation,
             batch_size=params.batch_size,
+            learning_rate=params.learning_rate,
             num_workers=params.num_workers,
-            shuffle=params.shuffle
+            shuffle=params.shuffle,
+            val_dataset_dir=params.val_dataset_dir,
+            train_dataset_dir=params.training_dataset_dir,
+            test_dataset_dir=params.test_dataset_dir
         )
     else:
         model = ComplexUNetLightning(
@@ -98,11 +95,15 @@ def main(params: Namespace) -> None:
             dp_rate=params.dp_rate,
             activation=params.activation,
             batch_size=params.batch_size,
+            learning_rate=params.learning_rate,
             num_workers=params.num_workers,
-            shuffle=params.shuffle
-        )
+            shuffle=params.shuffle,
+            val_dataset_dir=params.val_dataset_dir,
+            train_dataset_dir=params.train_dataset_dir,
+            test_dataset_dir=params.test_dataset_dir
+)
+    torch.compile(model)
 
-    torch.compile(model, mode="reduce-overhead")
     profiler = PyTorchProfiler(dirpath='./', filename='profiler_report')
     trainer = pl.Trainer(
         profiler=profiler,
@@ -115,7 +116,6 @@ def main(params: Namespace) -> None:
         precision=16,
         benchmark=True,
     )
-
     trainer.fit(model)
     trainer.test(model)
 
@@ -130,8 +130,8 @@ if __name__ == '__main__':
         'n_depth': 1,  # Set the depth of the network
         'dp_rate': 0.3,  # Set the dropout rate
         'gpus': None,  # Set to None for CPU
-        'max_epochs': 5,  # Set the maximum number of epochs
         'activation': nn.ReLU,  # Note: Use the module directly
+        'max_epochs': 5,  # Set the maximum number of epochs
         'checkpoint_dir': './',  # Set the directory for saving checkpoints
         'shuffle': True,  # Set to False to disable shuffling
         'num_workers': 4,  # Set the number of workers for data loading
@@ -142,7 +142,5 @@ if __name__ == '__main__':
         'val_dataset_dir': './val',  # Add the directory for the validation
     }
 
- 
     hparams = Namespace(**args)
     main(hparams)
-

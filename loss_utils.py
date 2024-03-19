@@ -15,8 +15,11 @@ import torch
 import torch.nn.functional as F
 
 
-def custom_ssim_loss(targets: torch.Tensor, outputs: torch.Tensor,
-                     data_range: float = 255.0) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def custom_ssim_loss(
+    targets: torch.Tensor,
+    outputs: torch.Tensor,
+    data_range: float = 255.0
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     custom_ssim_loss: Calculate the SSIM and MSE between
     the target and output images.
