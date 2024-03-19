@@ -10,7 +10,7 @@
     between two complex vectors (W = A + iB) and input vector (X = x + iy).
     The weights initialized in this class are complex and can be
     convolved with complex inputs such as
-    fourier representation of image inputs
+    fourier representation of image inputs...
     Adapted from implementation of
     complex convolutions in Deep Complex Networks by Trabelsi et. al. (2018)
 """
@@ -85,8 +85,7 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
                                   x[:, input_channel:, :, :])
 
     # Perform IFFT and shift
-    output_complex = torch.fft.fftshift(torch.fft.ifft2(input_complex),
-                                        dim=(-2, -1))
+    output_complex = torch.fft.fftshift(torch.fft.ifft2(input_complex), dim=(-2, -1))
 
     # Take the real part
     output = output_complex.real
@@ -119,7 +118,7 @@ class Conv2D(nn.Module):
                  kernel_size: Union[int, Tuple[int, int]] = 3,
                  activation: Optional[type[nn.Module]] = nn.ReLU,
                  dp_rate: float = 0.1, batchnorm: bool = True) -> None:
-        super(Conv2D, self).__init__()
+        super().__init__()
         self.n_depth = n_depth
         self.activation = activation
         self.dp_rate = dp_rate
@@ -173,7 +172,7 @@ class ConvComplex2D(nn.Module):
                  padding: Union[int, Tuple[int, int], str] = 'same',
                  dilation: Union[int, Tuple[int, int]] = 1, groups: int = 1,
                  bias: bool = True) -> None:
-        super(ConvComplex2D, self).__init__()
+        super().__init__()
 
         # Initialize convolution layers for real and imaginary parts
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size,
@@ -229,7 +228,7 @@ class ComplexUpsample2d(nn.Module):
 
     def __init__(self, scale_factor: int = 2, mode: str = 'bilinear',
                  align_corners: bool = False) -> None:
-        super(ComplexUpsample2d, self).__init__()
+        super().__init__()
         self.scale_factor = scale_factor
         self.mode = mode
         modes = ['linear', 'bilinear', 'bicubic', 'trilinear']
