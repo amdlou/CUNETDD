@@ -4,8 +4,7 @@
                      and datapots with dimensions 256x256x25."""
 
 from pathlib import Path
-from typing import Union, List, Tuple
-from typing import Optional
+from typing import Optional, Union, List, Tuple
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, TensorDataset
@@ -17,11 +16,14 @@ def normalize_data(data):
     Normalize the input data by dividing each image by its maximum value.
 
     Args:
-        data (torch.Tensor): Input data tensor of shape [B, C, H, W], where B is the batch size,
-                             C is the number of channels, H is the height, and W is the width.
+        data (torch.Tensor): Input data tensor of shape [B, C, H, W],
+                             where B is the batch size,
+                             C is the number of channels, H is the height,
+                             and W is the width.
 
     Returns:
-        torch.Tensor: Normalized data tensor of the same shape as the input data.
+        torch.Tensor: Normalized data tensor of the same shape
+                                             as the input data.
 
     """
     # Check if there's a batch dimension, and add one if there isn't
@@ -45,11 +47,12 @@ def normalize_data(data):
 
 class ParseDataset(Dataset):
     """
-    A PyTorch dataset class for parsing and preparing datasets from HDF5 or TFRecords files.
+    A PyTorch dataset class for parsing and preparing datasets
+                                   from HDF5 or TFRecords files.
 
     Args:
         filepath (str): The path to the dataset file or directory.
-        image_size (int or list): The size of the images in the dataset. 
+        image_size (int or list): The size of the images in the dataset.
         Can be an integer (when height=width) or a list (height, width).
         out_channel (int): The number of output channels.
 
@@ -86,10 +89,14 @@ class ParseDataset(Dataset):
             self.from_dir = False
 
         self.ext = self.file_lists[0].suffix.lstrip('.')
-        assert self.ext in ['h5', 'tfrecords'], "Currently only supports hdf5 or tfrecords as dataset"
-        assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
-        assert self.ext in ['h5', 'tfrecords'], "Currently only supports hdf5 or tfrecords as dataset"
-        assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
+        assert self.ext in ['h5', 'tfrecords'], \
+            "Currently only supports hdf5 or tfrecords as dataset"
+        assert isinstance(image_size, (int, list)), \
+            'image_size must be integer (height=width) or list (height, width)'
+        assert self.ext in ['h5', 'tfrecords'], \
+            "Currently only supports hdf5 or tfrecords as dataset"
+        assert isinstance(image_size, (int, list)), \
+            'image_size must be integer (height=width) or list (height, width)'
         if isinstance(image_size, int):
             self.height = self.width = image_size
         else:
@@ -127,7 +134,7 @@ class ParseDataset(Dataset):
         Returns:
             torch.utils.data.ConcatDataset: The concatenated dataset.
         """
-        
+
         for file in self.file_lists:
             try:
                 with h5py.File(file, 'r') as data:
@@ -137,12 +144,15 @@ class ParseDataset(Dataset):
                     data_probe = np.array(data['dataProbe'])
                     data_pots = np.array(data['dataPots'])
 
-                    cbed = [torch.from_numpy(data_meas[..., i].reshape((256, 256, 1)))
-                            .unsqueeze(0).permute(0, 3, 1, 2)
+                    cbed = [torch.from_numpy(data_meas[..., i]
+                            .reshape((256, 256, 1))).unsqueeze(0)
+                            .permute(0, 3, 1, 2)
                             for i in range(25)]
-                    probe = torch.from_numpy(data_probe[...]).unsqueeze(0).unsqueeze(0)
-                    pot = [torch.from_numpy(data_pots[..., i].reshape((256, 256, 1)))
-                           .unsqueeze(0).permute(0, 3, 1, 2) for i in range(25)]
+                    probe = torch.from_numpy(data_probe[...]) \
+                        .unsqueeze(0).unsqueeze(0)
+                    pot = [torch.from_numpy(data_pots[..., i]
+                           .reshape((256, 256, 1))).unsqueeze(0)
+                           .permute(0, 3, 1, 2) for i in range(25)]
 
                     if mode == 'default':
                         ds = TensorDataset(cbed[0], probe, pot[0])

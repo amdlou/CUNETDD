@@ -32,15 +32,13 @@ def custom_ssim_loss(
       Default is 255.0 for images in the 0-255 range.
 
     Returns:
-    - A tuple containing the SSIM loss, total loss, loss_1, and loss_2.
+    - A tuple containing the  total loss, loss_1, and loss_2.
     """
     # Calculate SSIM
     ssim_val = ssim(targets, outputs, data_range=data_range)
-    # Calculate SSIM loss
-    ssim_loss = 1 - ssim_val
 
     # Calculate losses
-    loss_1 = ssim_loss
+    loss_1 = 1 - ssim_val
     loss_2 = F.mse_loss(targets, outputs)
     total_loss = loss_1 + loss_2
 

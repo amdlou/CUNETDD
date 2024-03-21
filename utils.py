@@ -232,8 +232,11 @@ class ComplexUpsample2d(nn.Module):
         self.scale_factor = scale_factor
         self.mode = mode
         modes = ['linear', 'bilinear', 'bicubic', 'trilinear']
-        condition = mode in modes
-        self.align_corners = align_corners if condition else None
+        assert mode in modes, (
+            f"Invalid mode {mode}. Choose from 'linear', 'bilinear', "
+            "'bicubic', 'trilinear'."
+        )
+        self.align_corners = align_corners
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
