@@ -4,7 +4,7 @@
                      and datapots with dimensions 256x256x25."""
 
 from pathlib import Path
-from typing import Optional, Union, List, Tuple
+from typing import Union, List, Tuple, Optional
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, TensorDataset
@@ -74,35 +74,26 @@ class ParseDataset(Dataset):
 
     def __init__(self, filepath: str = '',
                  image_size: Union[int, List[int]] = 256,
-                 out_channel: int = 1):
-
+                 out_channel: int = 1, batch_size: int = 256):
 
         self.ds: Optional[ConcatDataset] = None
-        self.datasets = []
-        self.filepath = Path(filepath)
+        self.datasets: List[Dataset] = []
+        self.filepath: Path = Path(filepath)
+        self.batch_size = batch_size
+        self.file_lists: List[Path] = list(self.filepath.glob('**/*training.h5')) \
+            if self.filepath.is_dir() else [self.filepath]
+        self.from_dir: bool = self.filepath.is_dir()
 
-        if self.filepath.is_dir():
-            self.file_lists = list(self.filepath.glob('**/*training.h5'))
-            self.from_dir = True
-        else:
-            self.file_lists = [self.filepath]
-            self.from_dir = False
-
-        self.ext = self.file_lists[0].suffix.lstrip('.')
+        self.ext: str = self.file_lists[0].suffix.lstrip('.')
         assert self.ext in ['h5', 'tfrecords'], \
             "Currently only supports hdf5 or tfrecords as dataset"
-        assert isinstance(image_size, (int, list)), \
-            'image_size must be integer (height=width) or list (height, width)'
-        assert self.ext in ['h5', 'tfrecords'], \
-            "Currently only supports hdf5 or tfrecords as dataset"
-        assert isinstance(image_size, (int, list)), \
-            'image_size must be integer (height=width) or list (height, width)'
         if isinstance(image_size, int):
             self.height = self.width = image_size
         else:
             self.height, self.width = image_size
 
         self.out_channel = out_channel
+        #self.read(batch_size=self.batch_size)
 
     def read(self, batch_size: int = 256, shuffle: bool = True,
              mode: str = 'default') -> DataLoader:
@@ -120,6 +111,7 @@ class ParseDataset(Dataset):
 
         """
         self.ds = self.prepare_dataset_from_hdf5(mode)
+        print(f"Length of dataset: {len(self.ds)}")
         return DataLoader(self.ds, batch_size=batch_size, shuffle=shuffle)
 
     def prepare_dataset_from_hdf5(self, mode: str) -> ConcatDataset:
@@ -155,21 +147,17 @@ class ParseDataset(Dataset):
                            .permute(0, 3, 1, 2) for i in range(25)]
 
                     if mode == 'default':
-                        ds = TensorDataset(cbed[0], probe, pot[0])
-                        self.datasets.append(ds)
-                        for i in range(1, 25):
+                        for i in range(0, 25):
                             ds = TensorDataset(cbed[i], probe, pot[i])
                             self.datasets.append(ds)
 
                     elif mode == 'norm':
                         max_val = torch.max(probe)
                         pot = [p / max_val for p in pot]
-                        for i in range(25):
+                        for i in range(0, 25):
                             ds = TensorDataset(cbed[i], probe, pot[i])
                             self.datasets.append(ds)
-
                     self.ds = ConcatDataset(self.datasets)
-                    print(f"File: {file}, Num items: {len(self.ds)}")
             except OSError as e:
                 # If an error occurs, skip the file and print/log the error
                 print(f"Skipped corrupted or incompatible file. Error: {e}")
@@ -202,7 +190,6 @@ class ParseDataset(Dataset):
         for ds in self.datasets:
             if idx < len(ds):
                 cbed, probe, pot = ds[idx]
-                #pot = normalize_data(pot)
                 return (cbed, probe, pot)
             idx -= len(ds)
         # Return a default value if the index is out of range
