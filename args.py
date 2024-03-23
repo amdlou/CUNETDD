@@ -40,6 +40,7 @@ def get_args() -> Dict[str, Any]:
         'gpus': None,  # Set to None for CPU
         'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
         'activation': nn.ReLU,  # Note: Use the module directly
+        'chek_val_every_n_epoch': 1,  # Set the frequency of validation
 
 
         # #### Directory arguments#####
@@ -49,5 +50,7 @@ def get_args() -> Dict[str, Any]:
         'train_dataset_dir': './train',  # Add the directory for the training
         'test_dataset_dir': './test',  # Add the directory for the test
         'val_dataset_dir': './val',  # Add the directory for the validation
+        'execution_mode': 'fit',
+        # Set the mode to 'fit' for training,'test' for testing
     }
     return args

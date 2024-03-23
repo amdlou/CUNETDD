@@ -140,14 +140,14 @@ class ComplexUNetLightning(pl.LightningModule):
         train_dataset = ParseDataset(filepath=self.train_dataset_dir)
         self.train_dataset = train_dataset.read(batch_size=self.batch_size,
                                                 shuffle=self.shuffle)
-
-        val_dataset = ParseDataset(filepath=self.val_dataset_dir)
-        self.val_dataset = val_dataset.read(batch_size=self.batch_size,
-                                            shuffle=False)
-
-        test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-        self.test_dataset = test_dataset.read(batch_size=self.batch_size,
-                                              shuffle=False)
+        if self.val_dataset_dir is not None:
+            val_dataset = ParseDataset(filepath=self.val_dataset_dir)
+            self.val_dataset = val_dataset.read(batch_size=self.batch_size,
+                                                shuffle=False)
+        if self.test_dataset_dir is not None:
+            test_dataset = ParseDataset(filepath=self.test_dataset_dir)
+            self.test_dataset = test_dataset.read(batch_size=self.batch_size,
+                                                  shuffle=False)
 
     def train_dataloader(self):
         """
