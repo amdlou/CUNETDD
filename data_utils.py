@@ -1,7 +1,8 @@
 """prepare_dataset_from_hdf5 or TFRecords that loads data from HDF5 files.
- The data includes datameas with dimensions 256x256x25,
-                     dataprobe with dimensions 256x256,
-                     and datapots with dimensions 256x256x25."""
+ The data includes datameas(cbed) with dimensions 256x256x25,
+                     dataprobe(probe) with dimensions 256x256,
+                     and datapots(Structure Factors,real part) with
+                     dimensions 256x256x25."""
 
 from pathlib import Path
 from typing import Union, List, Tuple, Optional
@@ -93,7 +94,7 @@ class ParseDataset(Dataset):
             self.height, self.width = image_size
 
         self.out_channel = out_channel
-        #self.read(batch_size=self.batch_size)
+        # self.read(batch_size=self.batch_size)
 
     def read(self, batch_size: int = 256, shuffle: bool = True,
              mode: str = 'default') -> DataLoader:
