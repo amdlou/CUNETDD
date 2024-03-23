@@ -146,7 +146,6 @@ class ComplexUNetLightning(pl.LightningModule):
                                             shuffle=False)
 
         test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-
         self.test_dataset = test_dataset.read(batch_size=self.batch_size,
                                               shuffle=False)
 
