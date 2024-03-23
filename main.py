@@ -71,7 +71,7 @@ def create_model(params: Namespace) -> ComplexUNetLightning:
     model_params = {
         key: value for key, value in vars(params).items()
         if key not in [
-            'mode', 'use_profiler', 'max_epochs', 'gpus',
+            'execution_mode', 'use_profiler', 'max_epochs', 'gpus',
             'fast_dev_run', 'checkpoint_dir', 'checkpoint_pth',
             'log_every_n_steps', 'sync_bnorm'
         ]

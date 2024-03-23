@@ -38,7 +38,8 @@ def get_args() -> Dict[str, Any]:
         'use_profiler': False,  # Set to True to use profiler, False to not use
         'sync_bnorm': False,  # Set to True to sync batch norm across GPUs
         'gpus': None,  # Set to None for CPU
-        'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
+        'execution_mode': 'fit',
+        # Set to 'fit' for training, 'test' for testing
         'activation': nn.ReLU,  # Note: Use the module directly
         'chek_val_every_n_epoch': 1,  # Set the frequency of validation
 
@@ -50,7 +51,5 @@ def get_args() -> Dict[str, Any]:
         'train_dataset_dir': './train',  # Add the directory for the training
         'test_dataset_dir': './test',  # Add the directory for the test
         'val_dataset_dir': './val',  # Add the directory for the validation
-        'execution_mode': 'fit',
-        # Set the mode to 'fit' for training,'test' for testing
     }
     return args
