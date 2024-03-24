@@ -256,7 +256,7 @@ class ComplexUNetLightning(pl.LightningModule):
         if self.current_epoch % self.plot_frequency == 0:
             plt.figure()  # Create a new figure
             plt.plot(self.epochs, self.loss, 'ro-')
-            plt.title('Training loss')
+            plt.title(f"Training Loss at Epoch {self.current_epoch}")
             plt.xlabel('Epoch')
             plt.ylabel('Loss')
 
