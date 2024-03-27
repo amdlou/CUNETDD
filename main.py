@@ -118,13 +118,6 @@ def main(params: Namespace) -> None:
 
 if __name__ == '__main__':
     args = get_args()
-    """
-   # the hyperparameters are loaded from a JSON or YAML file named config.json.
 
-if __name__ == '__main__':
-
-    with open('args.json', 'r', encoding='utf-8') as f:
-        args = json.load(f)
-"""
     hparams = Namespace(**args)
     main(hparams)
