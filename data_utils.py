@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Union, List, Tuple, Optional
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader, ConcatDataset, TensorDataset
+from torch.utils.data import Dataset, ConcatDataset, TensorDataset
 import h5py
 
 
@@ -80,8 +80,8 @@ class ParseDataset(Dataset):
         self.datasets: List[Dataset] = []
         self.filepath: Path = Path(filepath)
         self.batch_size = batch_size
-        self.file_lists: List[Path] = list(self.filepath.glob('**/*training.h5')) \
-            if self.filepath.is_dir() else [self.filepath]
+        self.file_lists: List[Path] = list(self.filepath.glob(
+            '**/*training.h5')) if self.filepath.is_dir() else [self.filepath]
         self.from_dir: bool = self.filepath.is_dir()
 
         self.ext: str = self.file_lists[0].suffix.lstrip('.')
@@ -93,10 +93,8 @@ class ParseDataset(Dataset):
             self.height, self.width = image_size
 
         self.out_channel = out_channel
-        #self.read(batch_size=self.batch_size)
 
-    def read(self, batch_size: int = 256, shuffle: bool = True,
-             mode: str = 'default') -> DataLoader:
+    def read(self, mode: str = 'default') -> ConcatDataset:
         """
         Reads and prepares the dataset for training or evaluation.
 
@@ -111,8 +109,7 @@ class ParseDataset(Dataset):
 
         """
         self.ds = self.prepare_dataset_from_hdf5(mode)
-        print(f"Length of dataset: {len(self.ds)}")
-        return DataLoader(self.ds, batch_size=batch_size, shuffle=shuffle)
+        return self.ds
 
     def prepare_dataset_from_hdf5(self, mode: str) -> ConcatDataset:
         """
