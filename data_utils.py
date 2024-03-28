@@ -81,8 +81,8 @@ class ParseDataset(Dataset):
         self.datasets: List[Dataset] = []
         self.filepath: Path = Path(filepath)
         self.batch_size = batch_size
-        self.file_lists: List[Path] = list(self.filepath.glob('**/*training.h5')) \
-            if self.filepath.is_dir() else [self.filepath]
+        self.file_lists: List[Path] = list(self.filepath.glob(
+            '**/*training.h5')) if self.filepath.is_dir() else [self.filepath]
         self.from_dir: bool = self.filepath.is_dir()
 
         self.ext: str = self.file_lists[0].suffix.lstrip('.')
@@ -113,7 +113,9 @@ class ParseDataset(Dataset):
         """
         self.ds = self.prepare_dataset_from_hdf5(mode)
         print(f"Length of dataset: {len(self.ds)}")
-        return DataLoader(self.ds, batch_size=batch_size, shuffle=shuffle)
+        return DataLoader(self.ds,
+                          batch_size=batch_size,
+                          shuffle=shuffle)
 
     def prepare_dataset_from_hdf5(self, mode: str) -> ConcatDataset:
         """

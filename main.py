@@ -70,12 +70,7 @@ def create_model(params: Namespace) -> ComplexUNetLightning:
     """
     model_params = {
         key: value for key, value in vars(params).items()
-        if key not in [
-            'execution_mode', 'use_profiler', 'max_epochs', 'gpus',
-            'fast_dev_run', 'checkpoint_dir', 'checkpoint_pth',
-            'log_every_n_steps', 'sync_bnorm'
-        ]
-    }
+        }
     if params.checkpoint_pth:
         return ComplexUNetLightning.load_from_checkpoint(
             checkpoint_path=params.checkpoint_pth, **model_params
@@ -115,22 +110,9 @@ def main(params: Namespace) -> None:
     )
 
     getattr(trainer, params.mode)(model)
-    if params.execution_mode == 'fit':
-        trainer.fit(model)
-    elif params.execution_mode == 'test':
-        model.setup('test')
-        trainer.test(model, dataloaders=model.test_dataloader())
 
 
 if __name__ == '__main__':
     args = get_args()
-    """
-   # the hyperparameters are loaded from a JSON or YAML file named config.json.
-
-if __name__ == '__main__':
-
-    with open('args.json', 'r', encoding='utf-8') as f:
-        args = json.load(f)
-"""
     hparams = Namespace(**args)
     main(hparams)

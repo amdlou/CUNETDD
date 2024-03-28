@@ -137,14 +137,14 @@ class ComplexUNetLightning(pl.LightningModule):
         Set up the datasets for training, validation, and testing.
         """
         # Load the datasets from each respective folder
-        train_dataset = ParseDataset(filepath=self.train_dataset_dir)
-        self.train_dataset = train_dataset.read(batch_size=self.batch_size,
-                                                shuffle=self.shuffle)
-        if self.val_dataset_dir is not None:
+        if stage == 'fit' or stage is None:
+            train_dataset = ParseDataset(filepath=self.train_dataset_dir)
+            self.train_dataset = train_dataset.read(batch_size=self.batch_size,
+                                                    shuffle=self.shuffle)
             val_dataset = ParseDataset(filepath=self.val_dataset_dir)
             self.val_dataset = val_dataset.read(batch_size=self.batch_size,
                                                 shuffle=False)
-        if self.test_dataset_dir is not None:
+        if stage == 'test':
             test_dataset = ParseDataset(filepath=self.test_dataset_dir)
             self.test_dataset = test_dataset.read(batch_size=self.batch_size,
                                                   shuffle=False)

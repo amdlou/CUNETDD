@@ -31,18 +31,17 @@ def get_args() -> Dict[str, Any]:
         'learning_rate': 0.001,  # Add the learning rate
         'log_every_n_steps': 50,  # Set the number of steps between each log
         'max_epochs': 10,  # Set the maximum number of epochs
+        'chek_val_every_n_epoch': 1,  # Set the frequency of validation
+        'activation': nn.ReLU,  # Note: Use the module directly
 
-        # #### Optional arguments#####
+        # #### Boolean arguments#####
 
         'shuffle': True,  # Set to False to disable shuffling
         'fast_dev_run': False,  # Set to True for a quick test run
         'use_profiler': False,  # Set to True to use profiler, False to not use
         'sync_bnorm': False,  # Set to True to sync batch norm across GPUs
         'gpus': None,  # Set to None for CPU
-        'execution_mode': 'fit',
-        # Set to 'fit' for training, 'test' for testing
-        'activation': nn.ReLU,  # Note: Use the module directly
-        'chek_val_every_n_epoch': 1,  # Set the frequency of validation
+        'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
         'pin_memory': True,  # Set to True to use pinned memory
         'persistent_workers': True,  # Set to True to use persistent workers
 
