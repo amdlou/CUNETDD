@@ -176,7 +176,7 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Get the DataLoader for the test dataset.
         """
-        return DataLoader(self.train_dataset, batch_size=self.batch_size,
+        return DataLoader(self.test_dataset, batch_size=self.batch_size,
                           shuffle=False, num_workers=0,
                           pin_memory=False, drop_last=True,
                           persistent_workers=False)
