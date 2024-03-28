@@ -1,4 +1,7 @@
-# Description: This file contains the arguments for the CUNETD model.
+"""
+This file contains the arguments for the CUNETD model.
+"""
+
 from typing import Dict, Any
 from torch import nn
 
@@ -24,6 +27,7 @@ def get_args() -> Dict[str, Any]:
         'dp_rate': 0.3,  # Set the dropout rate
         'num_workers': 4,  # Set the number of workers for data loading
         'plot_frequency': 10,  # Set the frequency of plotting
+        'num_images_to_plot': 4,  # Set the number of images to plot
         'learning_rate': 0.001,  # Add the learning rate
         'log_every_n_steps': 50,  # Set the number of steps between each log
         'max_epochs': 10,  # Set the maximum number of epochs
@@ -35,8 +39,12 @@ def get_args() -> Dict[str, Any]:
         'use_profiler': False,  # Set to True to use profiler, False to not use
         'sync_bnorm': False,  # Set to True to sync batch norm across GPUs
         'gpus': None,  # Set to None for CPU
-        'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
+        'execution_mode': 'fit',
+        # Set to 'fit' for training, 'test' for testing
         'activation': nn.ReLU,  # Note: Use the module directly
+        'chek_val_every_n_epoch': 1,  # Set the frequency of validation
+        'pin_memory': True,  # Set to True to use pinned memory
+        'persistent_workers': True,  # Set to True to use persistent workers
 
 
         # #### Directory arguments#####

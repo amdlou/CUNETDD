@@ -71,7 +71,7 @@ def create_model(params: Namespace) -> ComplexUNetLightning:
     model_params = {
         key: value for key, value in vars(params).items()
         if key not in [
-            'mode', 'use_profiler', 'max_epochs', 'gpus',
+            'execution_mode', 'use_profiler', 'max_epochs', 'gpus',
             'fast_dev_run', 'checkpoint_dir', 'checkpoint_pth',
             'log_every_n_steps', 'sync_bnorm'
         ]
@@ -111,9 +111,15 @@ def main(params: Namespace) -> None:
         precision=16,
         benchmark=True,
         deterministic=False,
+        check_val_every_n_epoch=params.check_val_every_n_epoch,
     )
 
     getattr(trainer, params.mode)(model)
+    if params.execution_mode == 'fit':
+        trainer.fit(model)
+    elif params.execution_mode == 'test':
+        model.setup('test')
+        trainer.test(model, dataloaders=model.test_dataloader())
 
 
 if __name__ == '__main__':

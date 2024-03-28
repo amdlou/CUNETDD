@@ -215,17 +215,17 @@ class ComplexUNetLightning(pl.LightningModule):
             batch_idx: The index of the current batch.
 
         Returns:
-            Dict[str, torch.Tensor]: A dictionary containing the validation loss value.
+            Dict[str, torch.Tensor]: A dictionary containing
+            the validation loss value.
         """
         inputs_cb, inputs_pr, targets = batch
         with torch.no_grad():
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-            self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
-            self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
-            self.log('Train_loss', total_loss, on_step=False, on_epoch=True)
+            self.log('val_loss_1', loss_1, on_step=False, on_epoch=True)
+            self.log('val_loss_2', loss_2, on_step=False, on_epoch=True)
+            self.log('val_loss', total_loss, on_step=False, on_epoch=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
-            self.log('Train_loss_2', self.trainer.current_epoch)
             return {'val_loss': total_loss}
 
     def test_step(self, batch, batch_idx):
@@ -243,9 +243,9 @@ class ComplexUNetLightning(pl.LightningModule):
             inputs_cb, inputs_pr, targets = batch
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-            self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
-            self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
-            self.log('Train_loss', total_loss, on_step=False, on_epoch=True)
+            self.log('test_loss_1', loss_1, on_step=False, on_epoch=True)
+            self.log('test_loss_2', loss_2, on_step=False, on_epoch=True)
+            self.log('test_loss', total_loss, on_step=False, on_epoch=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
             return {'test_loss': total_loss}
 
@@ -265,7 +265,7 @@ class ComplexUNetLightning(pl.LightningModule):
         if self.current_epoch % self.plot_frequency == 0:
             plt.figure()  # Create a new figure
             plt.plot(self.epochs, self.loss, 'ro-')
-            plt.title('Training loss')
+            plt.title(f"Training Loss at Epoch {self.current_epoch}")
             plt.xlabel('Epoch')
             plt.ylabel('Loss')
 
@@ -341,7 +341,8 @@ class ComplexUNetLightning(pl.LightningModule):
             target_img = normalize_image(targets_np[i][0])
             output_img = normalize_image(outputs_np[i][0])
 
-            # Save the target and output images directly without scaling them to 255
+            # Save the target and output images
+            # directly without scaling them to 255
             plt.imsave(os.path.join(save_dir, f"target_{i}.png"), target_img,
                        cmap='gray', format='png')
             plt.imsave(os.path.join(save_dir, f"output_{i}.png"), output_img,
