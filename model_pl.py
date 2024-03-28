@@ -72,7 +72,10 @@ class ComplexUNetLightning(pl.LightningModule):
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
                  plot_frequency: int = 10,
-                 num_workers: int = 4, shuffle: bool = True) -> None:
+                 num_workers: int = 4, shuffle: bool = True,
+                 drop_last: bool = True, pin_memory: bool = False,
+                 persistent_workers: bool = False,
+                 num_images_to_plot: int = 4) -> None:
         super().__init__()
         self.complex_unet = ComplexUNet(input_channel, image_size, filter_size,
                                         n_depth, dp_rate, activation)
@@ -90,6 +93,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.learning_rate = learning_rate
         self.sample_counter = 0
         self.plot_frequency = plot_frequency
+        self.num_images_to_plot = num_images_to_plot
         self.val_dataset_dir = val_dataset_dir
         self.train_dataset_dir = train_dataset_dir
         self.test_dataset_dir = test_dataset_dir
@@ -304,13 +308,13 @@ class ComplexUNetLightning(pl.LightningModule):
         self.targets = []
         self.outputs = []
 
-    def on_validation_epoch_end(self, num_images_to_plot=10):
+    def on_validation_epoch_end(self):
         if self.current_epoch % self.plot_frequency == 0:
-            self.process_epoch_end(num_images_to_plot,
+            self.process_epoch_end(self.num_images_to_plot,
                                    f"validation_image_{self.current_epoch}")
 
-    def on_test_epoch_end(self, num_images_to_plot=10):
-        self.process_epoch_end(num_images_to_plot, "test_image")
+    def on_test_epoch_end(self):
+        self.process_epoch_end(self.num_images_to_plot, "test_image")
 
     def save_images(self, targets_np: np.ndarray, outputs_np: np.ndarray,
                     num_images_to_plot: int, save_dir: str) -> None:
