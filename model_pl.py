@@ -277,6 +277,7 @@ class ComplexUNetLightning(pl.LightningModule):
             # Ensure the directory for saving the plots exists
             save_dir = "training_plot"
             os.makedirs(save_dir, exist_ok=True)
+            plt.savefig(f"{save_dir}/plot_{self.current_epoch}.png")
             plt.close()
 
     def process_epoch_end(self, num_images_to_plot: int,
