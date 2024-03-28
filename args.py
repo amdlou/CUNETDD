@@ -44,7 +44,7 @@ def get_args() -> Dict[str, Any]:
         'fast_dev_run': False,  # Set to True for a quick test run
         'use_profiler': False,  # Set to True to use profiler, False to not use
         'log_every_n_steps': 50,  # Set the number of steps between each log
-        'chek_val_every_n_epoch': 1,  # Set the frequency of validation
+        'check_val_every_n_epoch': 1,  # Set the frequency of validation
         'precision': 16,  # Set the precision for training
         'benchmark': True,  # Set to True to enable benchmarking
         'deterministic': False,  # Set to True to enable deterministic training
