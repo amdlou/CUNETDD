@@ -16,6 +16,7 @@ import numpy as np
 import torch
 from torch import nn
 import pytorch_lightning as pl
+from torch.utils.data import DataLoader
 from model import ComplexUNet
 from loss_utils import custom_ssim_loss
 from data_utils import ParseDataset
@@ -78,6 +79,9 @@ class ComplexUNetLightning(pl.LightningModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
+        self.pin_memory = False
+        self.drop_last = True
+        self.persistent_workers = False
         self.learning_rate = learning_rate
         self.loss: List[float] = []
         self.epochs: List[int] = []
@@ -139,33 +143,39 @@ class ComplexUNetLightning(pl.LightningModule):
         # Load the datasets from each respective folder
         if stage == 'fit' or stage is None:
             train_dataset = ParseDataset(filepath=self.train_dataset_dir)
-            self.train_dataset = train_dataset.read(batch_size=self.batch_size,
-                                                    shuffle=self.shuffle)
+            self.train_dataset = train_dataset.read(mode='default')
             val_dataset = ParseDataset(filepath=self.val_dataset_dir)
-            self.val_dataset = val_dataset.read(batch_size=self.batch_size,
-                                                shuffle=False)
+            self.val_dataset = val_dataset.read(mode='default')
         if stage == 'test':
             test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-            self.test_dataset = test_dataset.read(batch_size=self.batch_size,
-                                                  shuffle=False)
+            self.test_dataset = test_dataset.read(mode='default')
 
     def train_dataloader(self):
         """
         Get the DataLoader for the training dataset.
         """
-        return self.train_dataset
+        return DataLoader(self.train_dataset, batch_size=self.batch_size,
+                          shuffle=self.shuffle, num_workers=self.num_workers,
+                          pin_memory=self.pin_memory, drop_last=self.drop_last,
+                          persistent_workers=self.persistent_workers)
 
     def val_dataloader(self):
         """
         Get the DataLoader for the validation dataset.
         """
-        return self.val_dataset
+        return DataLoader(self.val_dataset, batch_size=self.batch_size,
+                          shuffle=False, num_workers=0,
+                          pin_memory=False, drop_last=True,
+                          persistent_workers=False)
 
     def test_dataloader(self):
         """
         Get the DataLoader for the test dataset.
         """
-        return self.test_dataset
+        return DataLoader(self.train_dataset, batch_size=self.batch_size,
+                          shuffle=False, num_workers=0,
+                          pin_memory=False, drop_last=True,
+                          persistent_workers=False)
 
     def training_step(self, batch, batch_idx):
         """
