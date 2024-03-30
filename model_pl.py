@@ -15,8 +15,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from torch import nn
-import pytorch_lightning as pl
 from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 from model import ComplexUNet
 from loss_utils import custom_ssim_loss
 from data_utils import ParseDataset
