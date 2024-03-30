@@ -4,6 +4,7 @@ This file contains the arguments for the CUNETD model.
 
 from typing import Dict, Any
 from torch import nn
+import multiprocessing
 
 
 def get_args() -> Dict[str, Any]:
@@ -30,11 +31,12 @@ def get_args() -> Dict[str, Any]:
         'activation': nn.ReLU,  # Note: Use the module directly
         'shuffle': True,  # Set to False to disable shuffling
         'drop_last': True,  # Set to False to keep the last batch
-        'num_workers': 0,  # Set the number of workers for data loading
         'pin_memory': False,  # Set to True to use pinned memory
         'persistent_workers': False,  # Set to True to use persistent workers
         'plot_frequency': 10,  # Set the frequency of plotting
         'num_images_to_plot': 4,  # Set the number of images to plot
+        'num_workers': multiprocessing.cpu_count(),  # Set the number of
+         # workers for data loading  (Start with the number of CPU cores)
 
 
         # #### Trainer arguments#####
