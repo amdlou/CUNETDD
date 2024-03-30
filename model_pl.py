@@ -172,7 +172,7 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def test_dataloader(self):
         """
-        Get the DataLoader for the test dataset.
+        Get the DataLoader for the test dataset .
         """
         return DataLoader(self.test_dataset, batch_size=self.batch_size,
                           shuffle=self.shuffle, num_workers=self.num_workers,
