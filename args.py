@@ -17,7 +17,7 @@ def get_args() -> Dict[str, Any]:
     """
     args: Dict[str, Any] = {
 
-        # #### Main arguments #####
+        # #### Model arguments #####
 
         'input_channel': 1,  # Set the number of input channels
         'image_size': 256,  # Set the size of the input images
@@ -25,31 +25,35 @@ def get_args() -> Dict[str, Any]:
         'filter_size': 4,  # Set the initial number of filters
         'n_depth': 1,  # Set the depth of the network
         'dp_rate': 0.3,  # Set the dropout rate
-        'num_workers': 4,  # Set the number of workers for data loading
+        'num_workers': 0,  # Set the number of workers for data loading
         'plot_frequency': 10,  # Set the frequency of plotting
         'num_images_to_plot': 4,  # Set the number of images to plot
         'learning_rate': 0.001,  # Add the learning rate
-        'log_every_n_steps': 50,  # Set the number of steps between each log
-        'max_epochs': 10,  # Set the maximum number of epochs
-
-        # #### Optional arguments#####
-
+        'activation': nn.ReLU,  # Note: Use the module directly
         'shuffle': True,  # Set to False to disable shuffling
+        'pin_memory': False,  # Set to True to use pinned memory
+        'persistent_workers': False,  # Set to True to use persistent workers
+
+
+        # #### Trainer arguments#####
+
         'fast_dev_run': False,  # Set to True for a quick test run
         'use_profiler': False,  # Set to True to use profiler, False to not use
         'sync_bnorm': False,  # Set to True to sync batch norm across GPUs
         'gpus': None,  # Set to None for CPU
-        'execution_mode': 'fit',
-        # Set to 'fit' for training, 'test' for testing
-        'activation': nn.ReLU,  # Note: Use the module directly
+        'log_every_n_steps': 50,  # Set the number of steps between each log
+        'max_epochs': 10,  # Set the maximum number of epochs
         'chek_val_every_n_epoch': 1,  # Set the frequency of validation
-        'pin_memory': True,  # Set to True to use pinned memory
-        'persistent_workers': True,  # Set to True to use persistent workers
-
-
-        # #### Directory arguments#####
-
+        'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
         'checkpoint_pth': None,  # Set to the path of the checkpoint to laod
+        'precision': 16,  # Set the precision for training
+        'benchmark': True,  # Set to True to enable benchmarking
+        'deterministic': False,  # Set to True to enable deterministic training
+        'enable_progress_bar': False,  # Set to True to enable progress bar
+
+
+        # #### Directory arguments####
+
         'checkpoint_dir': './',  # Set the directory for saving checkpoints
         'train_dataset_dir': './train',  # Add the directory for the training
         'test_dataset_dir': './test',  # Add the directory for the test

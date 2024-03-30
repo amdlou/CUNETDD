@@ -15,9 +15,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from model import ComplexUNet
-from torch.utils.data import DataLoader
 from loss_utils import custom_ssim_loss
 from data_utils import ParseDataset
 
@@ -71,8 +71,9 @@ class ComplexUNetLightning(pl.LightningModule):
                  test_dataset_dir, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
-                 plot_frequency: int = 10,
-                 num_workers: int = 4, shuffle: bool = True) -> None:
+                 plot_frequency: int = 10, num_images_to_plot: int = 4,
+                 num_workers: int = 4, shuffle: bool = True,
+                 pin_memory: bool = False) -> None:
         super().__init__()
         self.complex_unet = ComplexUNet(input_channel, image_size, filter_size,
                                         n_depth, dp_rate, activation)
@@ -80,6 +81,8 @@ class ComplexUNetLightning(pl.LightningModule):
         self.num_workers = num_workers
         self.shuffle = shuffle
         self.learning_rate = learning_rate
+        self.pin_memory = pin_memory
+        self.num_images_to_plot = num_images_to_plot
         self.loss: List[float] = []
         self.epochs: List[int] = []
         self.targets: List[torch.Tensor] = []

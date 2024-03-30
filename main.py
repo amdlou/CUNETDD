@@ -71,17 +71,18 @@ def create_model(params: Namespace) -> ComplexUNetLightning:
     model_params = {
         key: value for key, value in vars(params).items()
         if key not in [
-            'execution_mode', 'use_profiler', 'max_epochs', 'gpus',
+            'mode', 'use_profiler', 'max_epochs', 'gpus',
             'fast_dev_run', 'checkpoint_dir', 'checkpoint_pth',
-            'log_every_n_steps', 'sync_bnorm'
+            'log_every_n_steps', 'sync_bnorm', 'num_images_to_plot'
+            'check_val_every_n_epoch', 'precision', 'benchmark',
+            'deterministic', 'enable_progress_bar'
         ]
     }
     if params.checkpoint_pth:
         return ComplexUNetLightning.load_from_checkpoint(
             checkpoint_path=params.checkpoint_pth, **model_params
         )
-    else:
-        return ComplexUNetLightning(**model_params)
+    return ComplexUNetLightning(**model_params)
 
 
 def main(params: Namespace) -> None:
@@ -103,27 +104,21 @@ def main(params: Namespace) -> None:
         if params.use_profiler else None,
         max_epochs=params.max_epochs,
         accelerator='cpu' if params.gpus is None else 'gpu',
-        enable_progress_bar=False,
+        enable_progress_bar=params.enable_progress_bar,
         callbacks=configure_callbacks(params),
         fast_dev_run=params.fast_dev_run,
         sync_batchnorm=params.sync_bnorm,
         log_every_n_steps=params.log_every_n_steps,
-        precision=16,
-        benchmark=True,
-        deterministic=False,
+        precision=params.precision,
+        benchmark=params.benchmark,
+        deterministic=params.deterministic,
         check_val_every_n_epoch=params.check_val_every_n_epoch,
     )
 
     getattr(trainer, params.mode)(model)
-    if params.execution_mode == 'fit':
-        trainer.fit(model)
-    elif params.execution_mode == 'test':
-        model.setup('test')
-        trainer.test(model, dataloaders=model.test_dataloader())
 
 
 if __name__ == '__main__':
     args = get_args()
-
     hparams = Namespace(**args)
     main(hparams)

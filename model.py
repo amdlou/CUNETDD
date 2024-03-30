@@ -42,7 +42,7 @@ class ComplexUNet(nn.Module):
                  batchnorm: bool = True,
                  bias: bool = True) -> None:
 
-        super(ComplexUNet, self).__init__()
+        super().__init__()
         self.cross_correlate = cross_correlate_fft
         self.inverse_fft = cross_correlate_ifft
         self.initial_conv = ConvSpec2D(input_channel, filter_size, 3,
