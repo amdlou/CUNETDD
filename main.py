@@ -73,7 +73,7 @@ def create_model(params: Namespace) -> ComplexUNetLightning:
         if key not in [
             'mode', 'use_profiler', 'max_epochs', 'gpus',
             'fast_dev_run', 'checkpoint_dir', 'checkpoint_pth',
-            'log_every_n_steps', 'sync_bnorm', 'num_images_to_plot'
+            'log_every_n_steps', 'sync_bnorm', 'num_images_to_plot',
             'check_val_every_n_epoch', 'precision', 'benchmark',
             'deterministic', 'enable_progress_bar'
         ]

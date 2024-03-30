@@ -71,9 +71,11 @@ class ComplexUNetLightning(pl.LightningModule):
                  test_dataset_dir, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
-                 plot_frequency: int = 10, num_images_to_plot: int = 4,
+                 plot_frequency: int = 10,
                  num_workers: int = 4, shuffle: bool = True,
-                 pin_memory: bool = False) -> None:
+                 drop_last: bool = True, pin_memory: bool = False,
+                 persistent_workers: bool = False,
+                 num_images_to_plot: int = 4) -> None:
         super().__init__()
         self.complex_unet = ComplexUNet(input_channel, image_size, filter_size,
                                         n_depth, dp_rate, activation)
@@ -82,6 +84,8 @@ class ComplexUNetLightning(pl.LightningModule):
         self.shuffle = shuffle
         self.learning_rate = learning_rate
         self.pin_memory = pin_memory
+        self.persistent_workers = persistent_workers
+        self.drop_last = drop_last
         self.num_images_to_plot = num_images_to_plot
         self.loss: List[float] = []
         self.epochs: List[int] = []
