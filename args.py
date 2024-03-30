@@ -1,10 +1,9 @@
 """
 This file contains the arguments for the CUNETD model.
 """
-
+import multiprocessing
 from typing import Dict, Any
 from torch import nn
-import multiprocessing
 
 
 def get_args() -> Dict[str, Any]:
