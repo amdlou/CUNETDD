@@ -1,7 +1,7 @@
 """
 This file contains the arguments for the CUNETD model.
 """
-import multiprocessing
+import torch
 from typing import Dict, Any
 from torch import nn
 
@@ -15,6 +15,12 @@ def get_args() -> Dict[str, Any]:
         args (Dict[str, Any]): A dictionary containing the arguments for
         the CUNETD model.
     """
+    # Set precision  settings
+ #   torch.backends.cuda.matmul.allow_tf32 = True
+ #   torch.backends.cuda.matmul.tf32_on = True
+ #   torch.set_default_dtype(torch.float32)
+ #   torch.set_float32_matmul_precision('medium')
+
     args: Dict[str, Any] = {
 
         # #### Model arguments #####
@@ -26,7 +32,7 @@ def get_args() -> Dict[str, Any]:
         'filter_size': 4,  # Set the initial number of filters
         'n_depth': 1,  # Set the depth of the network
         'dp_rate': 0.3,  # Set the dropout rate
-        'learning_rate': 0.001,  # Add the learning rate
+        'learning_rate': 0.0001,  # Add the learning rate
         'activation': nn.ReLU,  # Note: Use the module directly
         'shuffle': True,  # Set to False to disable shuffling
         'drop_last': True,  # Set to False to keep the last batch
@@ -34,20 +40,19 @@ def get_args() -> Dict[str, Any]:
         'persistent_workers': False,  # Set to True to use persistent workers
         'plot_frequency': 10,  # Set the frequency of plotting
         'num_images_to_plot': 4,  # Set the number of images to plot
-        'num_workers': multiprocessing.cpu_count(),  # Set the number of
-         # workers for data loading  (Start with the number of CPU cores)
+        'num_workers': 8,  # Set the number of workers for data loading
 
 
         # #### Trainer arguments#####
 
         'gpus': None,  # Set to None for CPU
         'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
-        'max_epochs': 10,  # Set the maximum number of epochs
+        'max_epochs': 4,  # Set the maximum number of epochs
         'fast_dev_run': False,  # Set to True for a quick test run
-        'use_profiler': False,  # Set to True to use profiler, False to not use
+        'use_profiler': True,  # Set to True to use profiler, False to not use
         'log_every_n_steps': 50,  # Set the number of steps between each log
         'check_val_every_n_epoch': 1,  # Set the frequency of validation
-        'precision': 16,  # Set the precision for training
+        'precision': '16-mixed',  # Set to 'mixed' to enable mixed training
         'benchmark': True,  # Set to True to enable benchmarking
         'deterministic': False,  # Set to True to enable deterministic training
         'enable_progress_bar': False,  # Set to True to enable progress bar

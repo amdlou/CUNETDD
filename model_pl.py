@@ -20,6 +20,7 @@ import pytorch_lightning as pl
 from model import ComplexUNet
 from loss_utils import custom_ssim_loss
 from data_utils import ParseDataset
+from py4dstem_utils import acc
 
 
 # Define MAX_SAMPLES
@@ -101,6 +102,8 @@ class ComplexUNetLightning(pl.LightningModule):
         self.val_dataset = None
         self.test_dataset = None
         self.loss_fn = custom_ssim_loss
+        self.acc = acc
+
 
     def forward(self, inputs_cb: torch.Tensor,
                 inputs_pr: torch.Tensor) -> torch.Tensor:
@@ -145,22 +148,24 @@ class ComplexUNetLightning(pl.LightningModule):
         Set up the datasets for training, validation, and testing.
         """
         # Load the datasets from each respective folder
-        if stage == 'fit' or stage is None:
+#        if stage == 'fit' or stage is None:
 
-            train_dataset = ParseDataset(filepath=self.train_dataset_dir)
-            self.train_dataset = train_dataset.read(mode='default')
+ #           train_dataset = ParseDataset(filepath=self.train_dataset_dir)
+ #           self.train_dataset = train_dataset.read(mode='default')
 
-            val_dataset = ParseDataset(filepath=self.val_dataset_dir)
-            self.val_dataset = val_dataset.read(mode='default')
-        if stage == 'test':
-            test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-            self.test_dataset = test_dataset.read(mode='default')
+ #           val_dataset = ParseDataset(filepath=self.val_dataset_dir)
+ #           self.val_dataset = val_dataset.read(mode='default')
+ #       if stage == 'test':
+#            test_dataset = ParseDataset(filepath=self.test_dataset_dir)
+#            self.test_dataset = test_dataset.read(mode='default')
+    pass
 
     def train_dataloader(self):
         """
         Get the DataLoader for the training dataset.
         """
-        return DataLoader(self.train_dataset, batch_size=self.batch_size,
+        train_dataset = ParseDataset(filepath=self.train_dataset_dir)
+        return DataLoader(train_dataset, batch_size=self.batch_size,
                           shuffle=self.shuffle, num_workers=self.num_workers,
                           pin_memory=False, drop_last=True,
                           persistent_workers=False)
@@ -169,8 +174,9 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Get the DataLoader for the validation dataset.
         """
-        return DataLoader(self.val_dataset, batch_size=self.batch_size,
-                          shuffle=self.shuffle, num_workers=self.num_workers,
+        val_dataset = ParseDataset(filepath=self.val_dataset_dir)
+        return DataLoader(val_dataset, batch_size=self.batch_size,
+                          shuffle=False, num_workers=self.num_workers,
                           pin_memory=False, drop_last=True,
                           persistent_workers=False)
 
@@ -178,8 +184,9 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Get the DataLoader for the test dataset .
         """
-        return DataLoader(self.test_dataset, batch_size=self.batch_size,
-                          shuffle=self.shuffle, num_workers=self.num_workers,
+        test_dataset = ParseDataset(filepath=self.test_dataset_dir)
+        return DataLoader(test_dataset, batch_size=self.batch_size,
+                          shuffle=False, num_workers=self.num_workers,
                           pin_memory=False, drop_last=True,
                           persistent_workers=False)
 
@@ -197,9 +204,13 @@ class ComplexUNetLightning(pl.LightningModule):
         inputs_cb, inputs_pr, targets = batch
         outputs = self(inputs_cb, inputs_pr)
         total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+        targets = targets.detach()
+        outputs = outputs.detach()
+        accuracy = self.acc.score(targets, outputs)
         self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
         self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
         self.log('Train_loss', total_loss, on_step=False, on_epoch=True)
+        self.log('accuracy', float(accuracy))
         return {'loss': total_loss}
 
     def on_validation_epoch_start(self):
@@ -229,10 +240,12 @@ class ComplexUNetLightning(pl.LightningModule):
         with torch.no_grad():
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+            accuracy = self.acc.score(targets, outputs)
             self.log('val_loss_1', loss_1, on_step=False, on_epoch=True)
             self.log('val_loss_2', loss_2, on_step=False, on_epoch=True)
             self.log('val_loss', total_loss, on_step=False, on_epoch=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
+            self.log('accuracy', float(accuracy))
             return {'val_loss': total_loss}
 
     def test_step(self, batch, batch_idx):
@@ -250,14 +263,16 @@ class ComplexUNetLightning(pl.LightningModule):
             inputs_cb, inputs_pr, targets = batch
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+            accuracy = self.acc.score(targets, outputs)
             self.log('test_loss_1', loss_1, on_step=False, on_epoch=True)
             self.log('test_loss_2', loss_2, on_step=False, on_epoch=True)
             self.log('test_loss', total_loss, on_step=False, on_epoch=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
+            self.log('accuracy', float(accuracy))
             return {'test_loss': total_loss}
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.RAdam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
     def on_train_epoch_end(self):
@@ -279,6 +294,8 @@ class ComplexUNetLightning(pl.LightningModule):
             # Ensure the directory for saving the plots exists
             save_dir = "training_plot"
             os.makedirs(save_dir, exist_ok=True)
+            plt.savefig(os.path.join(save_dir,
+                        f"training_loss_{self.current_epoch}.png"))
             plt.close()
 
     def process_epoch_end(self, num_images_to_plot: int,
@@ -312,8 +329,9 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def on_validation_epoch_end(self, num_images_to_plot=10):
         if self.current_epoch % self.plot_frequency == 0:
-            self.process_epoch_end(num_images_to_plot,
-                                   f"validation_image_{self.current_epoch}")
+            main_folder = "validation_image"
+            sub_folder = f"{main_folder}/{self.current_epoch}"
+            self.process_epoch_end(num_images_to_plot, sub_folder)
 
     def on_test_epoch_end(self, num_images_to_plot=10):
         self.process_epoch_end(num_images_to_plot, "test_image")

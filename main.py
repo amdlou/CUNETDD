@@ -95,7 +95,6 @@ def main(params: Namespace) -> None:
     Returns:
         None
     """
-
     model = create_model(params)
     torch.compile(model)
 
@@ -109,7 +108,7 @@ def main(params: Namespace) -> None:
         fast_dev_run=params.fast_dev_run,
         sync_batchnorm=params.sync_bnorm,
         log_every_n_steps=params.log_every_n_steps,
-        precision=params.precision,
+#        precision=params.precision,
         benchmark=params.benchmark,
         deterministic=params.deterministic,
         check_val_every_n_epoch=params.check_val_every_n_epoch,
