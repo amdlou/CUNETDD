@@ -17,6 +17,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
+from py4dstem_utils import acc
 from model import ComplexUNet
 from loss_utils import custom_ssim_loss
 from data_utils import ParseDataset
@@ -195,6 +196,10 @@ class ComplexUNetLightning(pl.LightningModule):
         inputs_cb, inputs_pr, targets = batch
         outputs = self(inputs_cb, inputs_pr)
         total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+        targets = targets.detach()
+        outputs = outputs.detach()
+        accuracy = self.acc.score(targets, outputs)
+        self.log('accuracy', float(accuracy))
         self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
         self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
         self.log('Train_loss', total_loss, on_step=False, on_epoch=True)
@@ -227,6 +232,10 @@ class ComplexUNetLightning(pl.LightningModule):
         with torch.no_grad():
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+            targets = targets.detach()
+            outputs = outputs.detach()
+            accuracy = self.acc.score(targets, outputs)
+            self.log('accuracy', float(accuracy))
             self.log('val_loss_1', loss_1, on_step=False, on_epoch=True)
             self.log('val_loss_2', loss_2, on_step=False, on_epoch=True)
             self.log('val_loss', total_loss, on_step=False, on_epoch=True)
@@ -248,6 +257,10 @@ class ComplexUNetLightning(pl.LightningModule):
             inputs_cb, inputs_pr, targets = batch
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+            targets = targets.detach()
+            outputs = outputs.detach()
+            accuracy = self.acc.score(targets, outputs)
+            self.log('accuracy', float(accuracy))
             self.log('test_loss_1', loss_1, on_step=False, on_epoch=True)
             self.log('test_loss_2', loss_2, on_step=False, on_epoch=True)
             self.log('test_loss', total_loss, on_step=False, on_epoch=True)
