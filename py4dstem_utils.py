@@ -4,9 +4,12 @@ https://github.com/AI-ML-4DSTEM/crystal4D/blob/dev/crystal4D/crystal4D/utils/py4
 This file contains the py4dstemModel class which is used to detect disks
 in an image and score the detection results.
 """
+import os
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 import py4DSTEM
+
 
 
 class Peakdet(object):
@@ -65,7 +68,7 @@ class Peakdet(object):
               prediction,
               tr_image=None,
               pred_image=None,
-              cutoff=0.5,
+              cutoff=0.3,
               pixel_size=0.0217,
               integrate_disk=False):
         """
@@ -77,10 +80,12 @@ class Peakdet(object):
             pred_x, pred_y, pred_int = self.integrate_disks(
              pred_image, prediction[0], prediction[1], prediction[2])
         else:
-            if (len(ground_truth[2]), len(ground_truth[2]), len(ground_truth[2])) == (0, 0, 0):
+            if (len(ground_truth[2]), len(ground_truth[2]),
+                    len(ground_truth[2])) == (0, 0, 0):
                 return 0, 0, (0, 0, 0), (0, 0, 0)
             true_x, true_y, true_int = ground_truth[0], ground_truth[1], ground_truth[2]
-            if (len(prediction[2]), len(prediction[1]), len(prediction[0])) == (0, 0, 0):
+            if (len(prediction[2]), len(prediction[1]),
+                    len(prediction[0])) == (0, 0, 0):
                 return 0, 0, (true_x, true_y, true_int), (0, 0, 0)
             pred_x, pred_y, pred_int = prediction[0], prediction[1], prediction[2]
 
@@ -201,6 +206,95 @@ class Accuracy:
             )
             accuracies.append(accuracy_int)
         return np.mean(accuracies)
+
+    def plot_coord(self, gt_batch, pred_batch, num_to_plot,
+                   save_dir):
+        """
+        Plot and save comparisons for a selected number of images from ground
+        truth and prediction batches,
+        dynamically computing and including accuracy in the plot legend.
+
+        Parameters:
+        - gt_batch: Batch of ground truth images.
+        - pred_batch: Batch of predicted images.
+        - num_to_plot: Number of images to plot.
+        - current_epoch: The current training/testing epoch.
+        - save_dir: Directory to save the plots.
+        """
+        # Ensure the directory exists
+        os.makedirs(save_dir, exist_ok=True)
+
+        # Limit the number of plots to the minimum of
+        # num_to_plot and the batch size
+        num_to_plot = min(num_to_plot, len(gt_batch))
+
+        for i in range(num_to_plot):
+            gt_processed = self.process_image(gt_batch[i])
+            pred_processed = self.process_image(pred_batch[i])
+            gt_peaks = self.model.aimlDiskDet(gt_processed,
+                                              self.aiml_param_dict)
+            pred_peaks = self.model.aimlDiskDet(pred_processed,
+                                                self.aiml_param_dict)
+            _, accuracy, _, _ = self.model.score(
+                                ground_truth=(gt_peaks['qx'],
+                                              gt_peaks['qy'],
+                                              gt_peaks['intensity']),
+                                              prediction=(pred_peaks['qx'],
+                                              pred_peaks['qy'],
+                                            pred_peaks['intensity']),)
+            # Combined plot configuration
+            fig, axs = plt.subplots(1, 2, figsize=(20, 5))  # 1 row, 2 columns
+
+            # Plot peak coordinates
+            axs[0].scatter(gt_peaks['qx'], gt_peaks['qy'], c='blue',
+                           label=f'GT (Acc: {accuracy:.2f})', alpha=0.5)
+            axs[0].scatter(pred_peaks['qx'], pred_peaks['qy'], c='red',
+                           label='Pred', alpha=0.5)
+            axs[0].set_title("Peaks")
+            axs[0].set_xlabel("qx")
+            axs[0].set_ylabel("qy")
+            axs[0].legend()
+            axs[0].grid(True)
+            max_length = max(len(gt_peaks['intensity']),
+                             len(pred_peaks['intensity']))
+            gt = np.pad(gt_peaks['intensity'],
+                        (0, max_length - len(gt_peaks['intensity'])),
+                        'constant')
+            pred = np.pad(pred_peaks['intensity'],
+                          (0, max_length - len(pred_peaks['intensity'])),
+                          'constant')
+            # Normalize GT intensities
+            gt_min, gt_max = np.min(gt), np.max(gt)
+            gt = (gt - gt_min) / ((gt_max - gt_min)+1e-7)
+
+            # Normalize Predicted intensities
+            pred_min, pred_max = np.min(pred), np.max(pred)
+            pred = (pred - pred_min) / ((pred_max - pred_min)+1e-7)
+            print(min(gt), max(gt), min(pred), max(pred))
+
+            axs[1].scatter(gt, pred, alpha=0.5, c='blue', marker='o',
+                           label='GT vs. Pred')
+
+            # Adding a diagonal line for perfect agreement
+            axs[1].plot([0, 1], [0, 1], 'r--', label='Perfect Agreement')
+            axs[1].set_title("Intensities")
+            axs[1].set_xlabel("GT Intensity")
+            axs[1].set_ylabel("Pred Intensity")
+            # Refine the scale to a more fine-grained view, if needed
+            axs[1].set_xlim([0, 1])
+            axs[1].set_ylim([0, 1])
+            axs[1].grid(True)
+            # Customize the ticks for a finer scale
+            axs[1].set_xticks(np.arange(0, 1.05, 0.05))
+            axs[1].set_yticks(np.arange(0, 1.05, 0.05))
+            axs[1].legend()
+
+            plt.suptitle(f"peaks - Image {i+1} (Acc: {accuracy:.2f})")
+
+            # Saving the combined plot
+            plt.savefig(os.path.join(save_dir,
+                                     f"peak_analysis_img_{i+1}.png"))
+            plt.close(fig)
 
 
 # Usage:
