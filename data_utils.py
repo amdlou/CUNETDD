@@ -88,6 +88,7 @@ class ParseDataset(Dataset):
         self.batch_size = batch_size
         self.file_lists: List[Path] = list(self.filepath.glob(
             '**/*training.h5')) if self.filepath.is_dir() else [self.filepath]
+        self.file_lists = self._filter_valid_files(self.file_lists)
         self.from_dir: bool = self.filepath.is_dir()
         self.ext: str = self.file_lists[0].suffix.lstrip('.')
         assert self.ext in ['h5', 'tfrecords'], \
@@ -100,13 +101,26 @@ class ParseDataset(Dataset):
         self.lengths = [25 for _ in self.file_lists]
         self.cumulative_lengths = np.cumsum(self.lengths)
 
-    def _replace_nan(self, tensor):
+    def _filter_valid_files(self, file_lists: List[Path]) -> List[Path]:
+        valid_files = []
+        for file in file_lists:
+            try:
+                with h5py.File(file, 'r') as f:
+                    pass
+                valid_files.append(file)
+            except OSError:
+                print(f"Skipped corrupted or incompatible file: {file}")
+        return valid_files
+
+    def _replace_nan(self, tensor: torch.Tensor) -> torch.Tensor:
+        """Replaces NaN values in a tensor with zeros."""
         replaced_tensor = torch.where(torch.isnan(tensor),
                                       torch.zeros_like(tensor), tensor)
         return replaced_tensor
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor,
                                              torch.Tensor, torch.Tensor]:
+        """Retrieves an item from the dataset based on the given index."""
         file_idx = np.searchsorted(self.cumulative_lengths, idx + 1)
         if file_idx > 0:
             idx -= self.cumulative_lengths[file_idx - 1]
@@ -123,4 +137,5 @@ class ParseDataset(Dataset):
                 self._replace_nan(pot))
 
     def __len__(self) -> int:
+        """Returns the length of the dataset."""
         return self.cumulative_lengths[-1]
