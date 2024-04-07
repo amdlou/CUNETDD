@@ -314,6 +314,8 @@ class ComplexUNetLightning(pl.LightningModule):
         # Convert tensors to numpy arrays for plotting
         targets_np = targets.cpu().to(torch.float32).numpy()
         outputs_np = outputs.cpu().to(torch.float32).numpy()
+        plt_coord = self.acc.plot_coord(targets_np, outputs_np,
+                                    num_images_to_plot, save_dir)
 
         # Save images
         self.save_images(targets_np, outputs_np, num_images_to_plot, save_dir)
