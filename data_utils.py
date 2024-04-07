@@ -5,10 +5,10 @@
                      dimensions 256x256x25."""
 
 from pathlib import Path
-from typing import Union, List, Tuple, Optional
+from typing import Union, List, Tuple
 import numpy as np
 import torch
-from torch.utils.data import Dataset, ConcatDataset, TensorDataset
+from torch.utils.data import Dataset
 import h5py
 
 
@@ -48,43 +48,47 @@ def normalize_data(data):
 
 class ParseDataset(Dataset):
     """
-    A PyTorch dataset class for parsing and preparing datasets
-                                   from HDF5 or TFRecords files.
+    A custom PyTorch dataset class for parsing and accessing data
+      from hdf5 or tfrecords files.
 
     Args:
         filepath (str): The path to the dataset file or directory.
-        image_size (int or list): The size of the images in the dataset.
-        Can be an integer (when height=width) or a list (height, width).
-        out_channel (int): The number of output channels.
+        image_size (int or List[int]): The size of the images in the dataset.
+        If an integer is provided, the images will be resized
+        to a square of that size. If a list of two integers is provided,
+        the images will be resized to the specified height and width.
+        out_channel (int): The number of output channels for the images.
+        batch_size (int): The batch size for the dataset.
 
     Attributes:
-        datasets (list): A list to store the individual datasets.
-        ds (torch.utils.data.ConcatDataset): The concatenated dataset.
         filepath (Path): The path to the dataset file or directory.
-        file_lists (list): A list of file paths.
-        from_dir (bool): Indicates whether the dataset is loaded
-                                from a directory or a single file.
-        ext (str): The file extension of the dataset file.
+        batch_size (int): The batch size for the dataset.
+        file_lists (List[Path]): A list of paths to the dataset files.
+        from_dir (bool): Indicates whether the dataset is loaded from
+        a directory or a single file.
+        ext (str): The file extension of the dataset files.
         height (int): The height of the images in the dataset.
         width (int): The width of the images in the dataset.
-        out_channel (int): The number of output channels.
-        task (str): The task associated with the dataset.
-        one_hot (bool): Indicates whether the labels are one-hot encoded.
+        out_channel (int): The number of output channels for the images.
+        lengths (List[int]): The lengths of the individual dataset files.
+        cumulative_lengths (ndarray):
+        The cumulative lengths of the dataset files.
+
+    Methods:
+        _replace_nan(tensor): Replaces NaN values in a tensor with zeros.
+        __getitem__(idx): Retrieves an item from the dataset
+                          based on the given index.
+        __len__(): Returns the length of the dataset.
 
     """
 
-    def __init__(self, filepath: str = '',
-                 image_size: Union[int, List[int]] = 256,
-                 out_channel: int = 1, batch_size: int = 256):
-
-        self.ds: Optional[ConcatDataset] = None
-        self.datasets: List[Dataset] = []
+    def __init__(self, filepath: str = '', image_size: Union[int,
+                 List[int]] = 256, out_channel: int = 1, batch_size: int = 256):
         self.filepath: Path = Path(filepath)
         self.batch_size = batch_size
         self.file_lists: List[Path] = list(self.filepath.glob(
             '**/*training.h5')) if self.filepath.is_dir() else [self.filepath]
         self.from_dir: bool = self.filepath.is_dir()
-
         self.ext: str = self.file_lists[0].suffix.lstrip('.')
         assert self.ext in ['h5', 'tfrecords'], \
             "Currently only supports hdf5 or tfrecords as dataset"
@@ -92,104 +96,31 @@ class ParseDataset(Dataset):
             self.height = self.width = image_size
         else:
             self.height, self.width = image_size
-
         self.out_channel = out_channel
-        # self.read(batch_size=self.batch_size)
+        self.lengths = [25 for _ in self.file_lists]
+        self.cumulative_lengths = np.cumsum(self.lengths)
 
-    def read(self, mode: str = 'default') -> ConcatDataset:
-        """
-        Reads and prepares the dataset for training or evaluation.
+    def _replace_nan(self, tensor):
+        replaced_tensor = torch.where(torch.isnan(tensor),
+                                      torch.zeros_like(tensor), tensor)
+        return replaced_tensor
 
-        Args:
-            batch_size (int): The batch size for the DataLoader.
-            shuffle (bool): Indicates whether to shuffle the dataset.
-            mode (str): The mode for preparing the dataset.
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor,
+                                             torch.Tensor, torch.Tensor]:
+        file_idx = np.searchsorted(self.cumulative_lengths, idx + 1)
+        if file_idx > 0:
+            idx -= self.cumulative_lengths[file_idx - 1]
+        with h5py.File(self.file_lists[file_idx], 'r') as file:
+            data_meas = np.array(file['dataMeas'][..., idx])
+            data_probe = np.array(file['dataProbe'][...])
+            data_pots = np.array(file['dataPots'][..., idx])
 
-        Returns:
-            torch.utils.data.DataLoader:
-            The DataLoader object for the prepared dataset.
+        cbed = torch.from_numpy(data_meas.reshape((256, 256, 1))).permute(2, 0, 1)
+        probe = torch.from_numpy(data_probe[...]).unsqueeze(0)
+        pot = torch.from_numpy(data_pots.reshape((256, 256, 1))).permute(2, 0, 1)
 
-        """
-        self.ds = self.prepare_dataset_from_hdf5(mode)
-        return self.ds
-
-    def prepare_dataset_from_hdf5(self, mode: str) -> ConcatDataset:
-        """
-        Loads the dataset from HDF5 files.
-
-        Args:
-            batch_size (int): The batch size for the DataLoader.
-            shuffle (bool): Indicates whether to shuffle the dataset.
-            mode (str): The mode for preparing the dataset.
-
-        Returns:
-            torch.utils.data.ConcatDataset: The concatenated dataset.
-        """
-
-        for file in self.file_lists:
-            try:
-                with h5py.File(file, 'r') as data:
-                    # Assuming data['dataMeas'] and data['dataPots']
-                    # are numpy arrays of shape (256, 256, 25)
-                    data_meas = np.array(data['dataMeas'])
-                    data_probe = np.array(data['dataProbe'])
-                    data_pots = np.array(data['dataPots'])
-
-                    cbed = [torch.from_numpy(data_meas[..., i]
-                            .reshape((256, 256, 1))).unsqueeze(0)
-                            .permute(0, 3, 1, 2)
-                            for i in range(25)]
-                    probe = torch.from_numpy(data_probe[...]) \
-                        .unsqueeze(0).unsqueeze(0)
-                    pot = [torch.from_numpy(data_pots[..., i]
-                           .reshape((256, 256, 1))).unsqueeze(0)
-                           .permute(0, 3, 1, 2) for i in range(25)]
-
-                    if mode == 'default':
-                        for i in range(0, 25):
-                            ds = TensorDataset(cbed[i], probe, pot[i])
-                            self.datasets.append(ds)
-
-                    elif mode == 'norm':
-                        max_val = torch.max(probe)
-                        pot = [p / max_val for p in pot]
-                        for i in range(0, 25):
-                            ds = TensorDataset(cbed[i], probe, pot[i])
-                            self.datasets.append(ds)
-                    self.ds = ConcatDataset(self.datasets)
-            except OSError as e:
-                # If an error occurs, skip the file and print/log the error
-                print(f"Skipped corrupted or incompatible file. Error: {e}")
-
-        return self.ds
+        return (self._replace_nan(cbed), self._replace_nan(probe),
+                self._replace_nan(pot))
 
     def __len__(self) -> int:
-        """
-        Returns the total number of samples in the dataset.
-
-        Returns:
-            int: The total number of samples in the dataset.
-
-        """
-        total_len = sum([len(ds) for ds in self.datasets])
-        return total_len
-
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor,
-                                             torch.Tensor]:
-        """
-        Returns the sample at the given index.
-
-        Args:
-            idx (int): The index of the sample.
-
-        Returns:
-            tuple: A tuple containing the input features and labels.
-
-        """
-        for ds in self.datasets:
-            if idx < len(ds):
-                cbed, probe, pot = ds[idx]
-                return (cbed, probe, pot)
-            idx -= len(ds)
-        # Return a default value if the index is out of range
-        return (torch.Tensor(), torch.Tensor(), torch.Tensor())
+        return self.cumulative_lengths[-1]
