@@ -330,9 +330,9 @@ class ComplexUNetLightning(pl.LightningModule):
     def on_validation_epoch_end(self):
         if self.current_epoch % self.plot_frequency == 0:
             if self.current_epoch % self.plot_frequency == 0:
-            main_folder = "validation_image"
-            sub_folder = f"{main_folder}/{self.current_epoch}"
-            self.process_epoch_end(num_images_to_plot, sub_folder)
+                main_folder = "validation_image"
+                sub_folder = f"{main_folder}/{self.current_epoch}"
+                self.process_epoch_end(self.num_images_to_plot, sub_folder)
 
     def on_test_epoch_end(self):
         self.process_epoch_end(self.num_images_to_plot, "test_image")
