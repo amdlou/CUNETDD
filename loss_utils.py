@@ -7,7 +7,7 @@
     (mu_x ** 2 + mu_y ** 2 + c1) * (sigma_x ** 2 + sigma_y ** 2 + c2)
     mu_x = mean of x, mu_y = mean of y,
     sigma_x = variance of x, sigma_y = variance of y,
-    MSE: Mean Squared Error
+    MAE: Mean Absolute Error
 """
 from typing import Tuple
 from pytorch_msssim import ssim
@@ -21,7 +21,7 @@ def custom_ssim_loss(
     data_range: float = 255.0
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    custom_ssim_loss: Calculate the SSIM and MSE between
+    custom_ssim_loss: Calculate the SSIM and MAE between
     the target and output images.
     Parameters:
     - y_true: The true image.
