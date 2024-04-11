@@ -270,7 +270,6 @@ class Accuracy:
             # Normalize Predicted intensities
             pred_min, pred_max = np.min(pred), np.max(pred)
             pred = (pred - pred_min) / ((pred_max - pred_min)+1e-7)
-            print(min(gt), max(gt), min(pred), max(pred))
 
             axs[1].scatter(gt, pred, alpha=0.5, c='blue', marker='o',
                            label='GT vs. Pred')
