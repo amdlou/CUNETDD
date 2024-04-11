@@ -101,6 +101,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
+        self.acc = acc
         self.loss_fn = custom_ssim_loss
 
     def forward(self, inputs_cb: torch.Tensor,
@@ -147,20 +148,16 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         # Load the datasets from each respective folder
         if stage == 'fit' or stage is None:
-            train_dataset = ParseDataset(filepath=self.train_dataset_dir)
-            self.train_dataset = train_dataset.read(mode='default')
-            val_dataset = ParseDataset(filepath=self.val_dataset_dir)
-            self.val_dataset = val_dataset.read(mode='default')
+            self.train_dataset = ParseDataset(filepath=self.train_dataset_dir)
+            self.val_dataset = ParseDataset(filepath=self.val_dataset_dir)
         if stage == 'test':
-            test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-            self.test_dataset = test_dataset.read(mode='default')
+            self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
 
     def train_dataloader(self):
         """
         Get the DataLoader for the training dataset.
         """
-        train_dataset = ParseDataset(filepath=self.train_dataset_dir)
-        return DataLoader(train_dataset, batch_size=self.batch_size,
+        return DataLoader(self.train_dataset, batch_size=self.batch_size,
                           shuffle=self.shuffle, num_workers=self.num_workers,
                           pin_memory=False, drop_last=True,
                           persistent_workers=False)
@@ -169,8 +166,7 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Get the DataLoader for the validation dataset.
         """
-        val_dataset = ParseDataset(filepath=self.val_dataset_dir)
-        return DataLoader(val_dataset, batch_size=self.batch_size,
+        return DataLoader(self.val_dataset, batch_size=self.batch_size,
                           shuffle=False, num_workers=0,
                           pin_memory=False, drop_last=True,
                           persistent_workers=False)
@@ -179,8 +175,7 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Get the DataLoader for the test dataset .
         """
-        test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-        return DataLoader(test_dataset, batch_size=self.batch_size,
+        return DataLoader(self.test_dataset, batch_size=self.batch_size,
                           shuffle=False, num_workers=0,
                           pin_memory=False, drop_last=True,
                           persistent_workers=False)
