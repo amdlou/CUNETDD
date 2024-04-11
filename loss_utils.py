@@ -39,7 +39,8 @@ def custom_ssim_loss(
 
     # Calculate losses
     loss_1 = 1 - ssim_val
-    loss_2 = F.mse_loss(targets, outputs)
+    # mae loss
+    loss_2 = F.l1_loss(targets, outputs)
     total_loss = loss_1 + loss_2
 
     return total_loss, loss_1, loss_2
