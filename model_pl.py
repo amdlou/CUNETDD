@@ -230,14 +230,14 @@ class ComplexUNetLightning(pl.LightningModule):
         with torch.no_grad():
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-            targets = targets.detach()
-            outputs = outputs.detach()
+            self.collect_samples(targets, outputs, MAX_SAMPLES)
+            targets = targets.detach().cpu().to(torch.float32).numpy()
+            outputs = outputs.detach().cpu().to(torch.float32).numpy()
             accuracy = self.acc.score(targets, outputs)
             self.log('accuracy', float(accuracy))
             self.log('val_loss_1', loss_1, on_step=False, on_epoch=True)
             self.log('val_loss_2', loss_2, on_step=False, on_epoch=True)
             self.log('val_loss', total_loss, on_step=False, on_epoch=True)
-            self.collect_samples(targets, outputs, MAX_SAMPLES)
             return {'val_loss': total_loss}
 
     def test_step(self, batch, batch_idx):
@@ -255,14 +255,14 @@ class ComplexUNetLightning(pl.LightningModule):
             inputs_cb, inputs_pr, targets = batch
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-            targets = targets.detach()
-            outputs = outputs.detach()
+            self.collect_samples(targets, outputs, MAX_SAMPLES)
+            targets = targets.detach().cpu().to(torch.float32).numpy()
+            outputs = outputs.detach().cpu().to(torch.float32).numpy()
             accuracy = self.acc.score(targets, outputs)
             self.log('accuracy', float(accuracy))
             self.log('test_loss_1', loss_1, on_step=False, on_epoch=True)
             self.log('test_loss_2', loss_2, on_step=False, on_epoch=True)
             self.log('test_loss', total_loss, on_step=False, on_epoch=True)
-            self.collect_samples(targets, outputs, MAX_SAMPLES)
             return {'test_loss': total_loss}
 
     def configure_optimizers(self):
