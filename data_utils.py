@@ -45,7 +45,6 @@ def normalize_data(data):
         normalized_data = normalized_data.squeeze(0)
     return normalized_data
 
-
 class ParseDataset(Dataset):
     """
     A custom PyTorch dataset class for parsing and accessing data
@@ -84,10 +83,13 @@ class ParseDataset(Dataset):
 
     def __init__(self, filepath: str = '', image_size: Union[int,
                  List[int]] = 256, out_channel: int = 1, batch_size: int = 256):
+
+        assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
         self.filepath: Path = Path(filepath)
         self.batch_size = batch_size
         self.file_lists: List[Path] = list(self.filepath.glob(
             '**/*training.h5')) if self.filepath.is_dir() else [self.filepath]
+        self.file_lists = self._filter_valid_files(self.file_lists)
         self.from_dir: bool = self.filepath.is_dir()
         self.ext: str = self.file_lists[0].suffix.lstrip('.')
         assert self.ext in ['h5', 'tfrecords'], \
@@ -100,27 +102,42 @@ class ParseDataset(Dataset):
         self.lengths = [25 for _ in self.file_lists]
         self.cumulative_lengths = np.cumsum(self.lengths)
 
-    def _replace_nan(self, tensor):
-        replaced_tensor = torch.where(torch.isnan(tensor),
-                                      torch.zeros_like(tensor), tensor)
-        return replaced_tensor
+    def _filter_valid_files(self, file_lists: List[Path]) -> List[Path]:
+        valid_files = []
+        for file in file_lists:
+            try:
+                with h5py.File(file, 'r') as f:
+                    pass
+                valid_files.append(file)
+            except OSError:
+                print(f"Skipped corrupted or incompatible file: {file}")
+        return valid_files
+
+    def _replace_nan(self, tensor: torch.Tensor) -> torch.Tensor:
+        """Replaces NaN values in a tensor with zeros."""
+        tensor.masked_fill_(torch.isnan(tensor), 0)
+        return tensor
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor,
                                              torch.Tensor, torch.Tensor]:
+        """Retrieves an item from the dataset based on the given index."""
         file_idx = np.searchsorted(self.cumulative_lengths, idx + 1)
         if file_idx > 0:
             idx -= self.cumulative_lengths[file_idx - 1]
         with h5py.File(self.file_lists[file_idx], 'r') as file:
-            data_meas = np.array(file['dataMeas'][..., idx])
-            data_probe = np.array(file['dataProbe'][...])
-            data_pots = np.array(file['dataPots'][..., idx])
+            data_meas = torch.from_numpy(file['dataMeas'][..., idx])
+            data_probe = torch.from_numpy(file['dataProbe'][...])
+            data_pots = torch.from_numpy(file['dataPots'][..., idx])
 
-        cbed = torch.from_numpy(data_meas.reshape((256, 256, 1))).permute(2, 0, 1)
-        probe = torch.from_numpy(data_probe[...]).unsqueeze(0)
-        pot = torch.from_numpy(data_pots.reshape((256, 256, 1))).permute(2, 0, 1)
+        cbed = data_meas.unsqueeze(0)
+        probe = data_probe.unsqueeze(0)
+        pot = data_pots.unsqueeze(0)
 
         return (self._replace_nan(cbed), self._replace_nan(probe),
                 self._replace_nan(pot))
 
     def __len__(self) -> int:
+        """Returns the length of the dataset."""
         return self.cumulative_lengths[-1]
+
+
