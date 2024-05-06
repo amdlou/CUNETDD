@@ -194,8 +194,8 @@ class ComplexUNetLightning(pl.LightningModule):
         inputs_cb, inputs_pr, targets = batch
         outputs = self(inputs_cb, inputs_pr)
         total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-        targets = targets.detach()
-        outputs = outputs.detach()
+        targets = targets.detach().cpu().to(torch.float32).numpy()
+        outputs = outputs.detach().cpu().to(torch.float32).numpy()
         accuracy = self.acc.score(targets, outputs)
         self.log('accuracy', float(accuracy))
         self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
