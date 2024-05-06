@@ -54,6 +54,8 @@ def cross_correlate_fft(
 
     # Normalize each cross-correlation
     ccff_norm = torch.norm(ccff, dim=(-2, -1), keepdim=True)
+    epsilon = 1e-8
+    ccff_norm += epsilon
     ccff_normalized = ccff / ccff_norm
 
     # Split into real and imaginary parts
