@@ -37,7 +37,7 @@ Training Modes
 
 Fit Mode: For training the model.
 
--Test Mode: For evaluating the model on the test dataset.
+Test Mode: For evaluating the model on the test dataset.
 
 
 Directory Management
