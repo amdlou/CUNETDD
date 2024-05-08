@@ -153,22 +153,26 @@ class Conv2D(nn.Module):
 
 
 class ConvComplex2D(nn.Module):
-    """
+   """
     Convolutional layer for complex-valued inputs.
 
+    This module expects the input tensor to contain an equal split of real and imaginary parts
+    in the channel dimension, effectively doubling the `in_channels` specified. For example,
+    if the actual input tensor has 20 channels, 10 of these should be real and 10 imaginary,
+    and `in_channels` should be set to 10.
 
     Args:
-        in_channels (int): Number of input channels.
-        out_channels (int): Number of output channels.
+        in_channels (int): Number of input channels for each of the real and imaginary parts.
+                           The total channel count of the tensor should be 2 * in_channels.
+        out_channels (int): Number of output channels for each of the real and imaginary parts.
+                            The output tensor will have 2 * out_channels channels.
         kernel_size (int or tuple): Size of the convolutional kernel.
         stride (int or tuple, optional): Stride of the convolution.
-        padding (int or tuple or 'same', optional): Padding added to the input.
+        padding (int or tuple or 'same', optional): Padding added to all sides of the input.
         dilation (int or tuple, optional): Spacing between kernel elements.
-        groups (int, optional): Number of blocked connections
-        from input channels to output channels.
+        groups (int, optional): Number of blocked connections from input channels to output channels.
         bias (bool, optional): If True, adds a learnable bias to the output.
     """
-
     def __init__(self, in_channels: int, out_channels: int,
                  kernel_size: Union[int, Tuple[int, int]],
                  stride: Union[int, Tuple[int, int]] = 1,
