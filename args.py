@@ -22,7 +22,7 @@ def get_args() -> Dict[str, Any]:
         'input_channel': 1,  # Set the number of input channels
         'image_size': 256,  # Set the size of the input images
         'batch_size': 2,  # Set the batch size
-        'filter_size': 4,  # Set the initial number of filters
+        'filter_size': 4,  # Set the initial number of filters of real or imaginary total will be double
         'n_depth': 1,  # Set the depth of the network
         'dp_rate': 0.3,  # Set the dropout rate
         'learning_rate': 0.001,  # Add the learning rate
