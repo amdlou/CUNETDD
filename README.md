@@ -41,6 +41,7 @@ Directory Management
 Checkpoint Directory
 
 Path: Configure the checkpoint directory in `args.py` to determine where model checkpoints will be saved.
+
 You can also load a model from a checkpoint to resume training or test by providing checkpoint path
 
 Dataset Directory
@@ -66,9 +67,12 @@ Activate profiling to diagnose performance issues:
 This feature leverages PyTorch Lightning's built-in profiler and generates a detailed performance report.
 
 CPU Usage: Set gpus=None to force training on the CPU when GPU resources are unavailable or undesired.
+
 Single GPU: Set gpus=1 to utilize a single GPU for training, harnessing GPU acceleration for faster computations.
+
 Multi-GPU Strategy: Use gpus=4 and accelerator='ddp' (or choose another strategy like 'ddp2' or 'horovod' depending on your specific needs) 
 for distributed training across multiple GPUs, optimizing performance and scaling.
+
 Synchronized Batch Normalization: Enable sync_batchnorm=True when using multiple GPUs 
 to ensure consistent batch normalization across all devices.
 
