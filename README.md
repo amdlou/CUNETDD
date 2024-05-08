@@ -11,7 +11,9 @@ Configuration
 Modify settings in `args.py` to adjust model parameters and training settings according to your needs.
 
 Key Configuration Parameters
+
 Model Parameters: `input_channel`, `batch_size`, `learning_rate`, etc.
+
 Training Settings: `max_epochs`, `precision`, `benchmark`, etc.
 
 Running the Training
@@ -19,29 +21,38 @@ Running the Training
 Start the training process by running the `main.py` script
 
 Training Arguments
+
 `max_epochs`: Defines the maximum number of training epochs.
+
 `precision`: Sets the computational precision (16 or 32 bits).
+
 `benchmark`: Activates benchmarking to optimize performance.
 
 Additional Features
 
 Training Modes
+
 Fit Model: For training the model.
+
 Test Mode: For evaluating the model on the test dataset.
 
 Directory Management
 
 Checkpoint Directory
+
 Path: Configure the checkpoint directory in `args.py` to determine where model checkpoints will be saved.
 You can also load a model from a checkpoint to resume training or test by providing checkpoint path
 
 Dataset Directory
+
 Set up directories for training, validation, and test datasets
 
 Model Compilation
+
 Compiles the model for optimized GPU execution using Triton (windows not supported)
 
 Visualization and Evaluation
+
 Plot Frequency: Determines how often to plot training progress images using val_dataset
 
 Custom Callbacks
