@@ -19,8 +19,8 @@ accelerator is used to control the training process on cpu or gpu.
 
 from typing import List
 from argparse import Namespace
-import torch
 from pytorch_lightning.profilers import PyTorchProfiler
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -38,8 +38,9 @@ def configure_callbacks(params) -> List[Callback]:
     Returns:
         list: List of callbacks to be used during training.
     """
+    
     early_stop = EarlyStopping(
-        monitor='Train_loss_2',
+        monitor='Train_loss',
         min_delta=0.00,
         patience=1000,
         verbose=True,
@@ -47,11 +48,11 @@ def configure_callbacks(params) -> List[Callback]:
     )
 
     checkpoint = ModelCheckpoint(
-        monitor='Train_loss_2',
+        monitor='Train_loss',
         dirpath=params.checkpoint_dir,
         filename='FCUnet-{epoch:02d}',
         save_top_k=1,
-        verbose=True,
+        verbose=False,
         mode='min'
     )
     return [early_stop, checkpoint]
@@ -73,9 +74,12 @@ def create_model(params: Namespace) -> ComplexUNetLightning:
         if key not in [
             'mode', 'use_profiler', 'max_epochs', 'gpus',
             'fast_dev_run', 'checkpoint_dir', 'checkpoint_pth',
-            'log_every_n_steps', 'sync_bnorm', 'accelerator',
+            'log_every_n_steps', 'sync_bnorm', 'num_images_to_plot',
             'check_val_every_n_epoch', 'precision', 'benchmark',
-            'deterministic', 'enable_progress_bar'
+            'deterministic', 'enable_progress_bar', 'limit_train_batches',
+            'gradient_clip_val', 'track_grad_norm', 'accelerator',
+            'accumulate_grad_batches','strategy', 'num_nodes',
+            'gradient_clip_algorithm'
         ]
     }
     if params.checkpoint_pth:
@@ -95,24 +99,30 @@ def main(params: Namespace) -> None:
     Returns:
         None
     """
-
     model = create_model(params)
-    torch.compile(model)
 
     trainer = pl.Trainer(
         profiler=PyTorchProfiler(dirpath='./', filename='profiler_report')
         if params.use_profiler else None,
         max_epochs=params.max_epochs,
+        accumulate_grad_batches=params.accumulate_grad_batches,
         accelerator='cpu' if params.gpus is None else 'gpu',
-        enable_progress_bar=params.enable_progress_bar,
+        devices= 1 if params.gpus is None else params.gpus,
+        sync_batchnorm=False if params.gpus is None else params.sync_bnorm,
+        strategy=params.strategy,
+	    num_nodes=params.num_nodes,
         callbacks=configure_callbacks(params),
         fast_dev_run=params.fast_dev_run,
-        sync_batchnorm=params.sync_bnorm,
         log_every_n_steps=params.log_every_n_steps,
-        precision=params.precision,
-        benchmark=params.benchmark,
-        deterministic=params.deterministic,
         check_val_every_n_epoch=params.check_val_every_n_epoch,
+        benchmark=params.benchmark,
+        gradient_clip_val=params.gradient_clip_val,
+        gradient_clip_algorithm=params.gradient_clip_algorithm,
+        deterministic=params.deterministic,
+        enable_progress_bar=params.enable_progress_bar,
+        limit_train_batches=params.limit_train_batches,
+        #precision=params.precision,
+        #track_grad_norm=params.track_grad_norm,
     )
 
     getattr(trainer, params.mode)(model)
