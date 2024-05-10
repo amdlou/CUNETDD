@@ -40,7 +40,6 @@ def custom_ssim_loss(
 
     # Calculate SSIM
     ssim_val = ssim(targets, outputs, data_range=data_range)
-    ssim_val = torch.clamp(ssim_val, min=1e-7)
     # Calculate losses
     loss_1 = 1 - ssim_val  # SSIM loss component
     loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
