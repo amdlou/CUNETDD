@@ -110,7 +110,7 @@ def main(params: Namespace) -> None:
         devices= 1 if params.gpus is None else params.gpus,
         sync_batchnorm=False if params.gpus is None else params.sync_bnorm,
         strategy=params.strategy,
-	    num_nodes=params.num_nodes,
+	num_nodes=params.num_nodes,
         callbacks=configure_callbacks(params),
         fast_dev_run=params.fast_dev_run,
         log_every_n_steps=params.log_every_n_steps,
