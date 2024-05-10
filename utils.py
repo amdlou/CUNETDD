@@ -53,7 +53,9 @@ def cross_correlate_fft(
     ccff = cbed_fft * torch.conj(probe_fft)
 
     # Normalize each cross-correlation
-    ccff_norm = torch.norm(ccff, dim=(-2, -1), keepdim=True)
+	
+    epsilon = 1e-8
+    ccff_norm = torch.norm(ccff, dim=(-2, -1), keepdim=True)  + epsilon
     ccff_normalized = ccff / ccff_norm
 
     # Split into real and imaginary parts
@@ -79,7 +81,7 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
         torch.Tensor: Output tensor after performing
         cross-correlation using IFFT.
     """
-    x = x.to(torch.float32)  # Convert to float32 for torch.fft
+    #x = x.to(torch.float32)  # Convert to float32 for torch.fft
     input_channel = x.size(1) // 2
     input_complex = torch.complex(x[:, :input_channel, :, :],
                                   x[:, input_channel:, :, :])

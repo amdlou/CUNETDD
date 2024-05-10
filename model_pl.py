@@ -24,8 +24,7 @@ from py4dstem_utils import acc
 
 
 # Define MAX_SAMPLES
-MAX_SAMPLES = 500
-
+MAX_SAMPLES = 10
 
 def normalize_image(image: np.ndarray) -> np.ndarray:
     """
@@ -104,7 +103,6 @@ class ComplexUNetLightning(pl.LightningModule):
         self.loss_fn = custom_ssim_loss
         self.acc = acc
 
-
     def forward(self, inputs_cb: torch.Tensor,
                 inputs_pr: torch.Tensor) -> torch.Tensor:
         """
@@ -167,7 +165,7 @@ class ComplexUNetLightning(pl.LightningModule):
         Get the DataLoader for the validation dataset.
         """
         return DataLoader(self.val_dataset, batch_size=self.batch_size,
-                          shuffle=False, num_workers=self.num_workers,
+                          shuffle=True, num_workers=self.num_workers,
                           pin_memory=self.pin_memory, drop_last=True,
                           persistent_workers=self.persistent_workers)
 
@@ -194,13 +192,14 @@ class ComplexUNetLightning(pl.LightningModule):
         inputs_cb, inputs_pr, targets = batch
         outputs = self(inputs_cb, inputs_pr)
         total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-        targets = targets.detach()
-        outputs = outputs.detach()
+        targets = targets.detach().cpu().to(torch.float32).numpy()
+        outputs = outputs.detach().cpu().to(torch.float32).numpy()
         accuracy = self.acc.score(targets, outputs)
-        self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True)
-        self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True)
-        self.log('Train_loss', total_loss, on_step=False, on_epoch=True)
-        self.log('accuracy', float(accuracy))
+        self.log('accuracy', float(accuracy), sync_dist=True)
+        self.log('Train_loss_1', loss_1, on_step=True, on_epoch=True, sync_dist=True)
+        self.log('Train_loss_2', loss_2, on_step=True, on_epoch=True, sync_dist=True)
+        self.log('Train_loss', total_loss, on_step=True, on_epoch=True, sync_dist=True)
+
         return {'loss': total_loss}
 
     def on_validation_epoch_start(self):
@@ -230,12 +229,14 @@ class ComplexUNetLightning(pl.LightningModule):
         with torch.no_grad():
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-            accuracy = self.acc.score(targets, outputs)
-            self.log('val_loss_1', loss_1, on_step=False, on_epoch=True)
-            self.log('val_loss_2', loss_2, on_step=False, on_epoch=True)
-            self.log('val_loss', total_loss, on_step=False, on_epoch=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
-            self.log('accuracy', float(accuracy))
+            targets = targets.detach().cpu().to(torch.float32).numpy()
+            outputs = outputs.detach().cpu().to(torch.float32).numpy()
+            accuracy = self.acc.score(targets, outputs)
+            self.log('val_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('accuracy', float(accuracy), sync_dist=True)
             return {'val_loss': total_loss}
 
     def test_step(self, batch, batch_idx):
@@ -254,11 +255,11 @@ class ComplexUNetLightning(pl.LightningModule):
             outputs = self(inputs_cb, inputs_pr)
             total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
             accuracy = self.acc.score(targets, outputs)
-            self.log('test_loss_1', loss_1, on_step=False, on_epoch=True)
-            self.log('test_loss_2', loss_2, on_step=False, on_epoch=True)
-            self.log('test_loss', total_loss, on_step=False, on_epoch=True)
+            self.log('test_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
-            self.log('accuracy', float(accuracy))
+            self.log('accuracy', float(accuracy), sync_dist=True)
             return {'test_loss': total_loss}
 
     def configure_optimizers(self):
@@ -322,7 +323,7 @@ class ComplexUNetLightning(pl.LightningModule):
     def on_validation_epoch_end(self, num_images_to_plot=10):
         if self.current_epoch % self.plot_frequency == 0:
             main_folder = "validation_image"
-            sub_folder = f"{main_folder}/{self.current_epoch}"
+            sub_folder = f"{main_folder}/epoch{self.current_epoch}"
             self.process_epoch_end(num_images_to_plot, sub_folder)
 
     def on_test_epoch_end(self, num_images_to_plot=10):

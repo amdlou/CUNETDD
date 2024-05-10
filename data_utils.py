@@ -82,11 +82,10 @@ class ParseDataset(Dataset):
     """
 
     def __init__(self, filepath: str = '', image_size: Union[int,
-                 List[int]] = 256, out_channel: int = 1, batch_size: int = 256):
+                 List[int]] = 256, out_channel: int = 1):
 
         assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
         self.filepath: Path = Path(filepath)
-        self.batch_size = batch_size
         self.file_lists: List[Path] = list(self.filepath.glob(
             '**/*training.h5')) if self.filepath.is_dir() else [self.filepath]
         self.file_lists = self._filter_valid_files(self.file_lists)
@@ -112,12 +111,6 @@ class ParseDataset(Dataset):
             except OSError:
                 print(f"Skipped corrupted or incompatible file: {file}")
         return valid_files
-
-    def _replace_nan(self, tensor: torch.Tensor) -> torch.Tensor:
-        """Replaces NaN values in a tensor with zeros."""
-        replaced_tensor = torch.where(torch.isnan(tensor),
-                                      torch.zeros_like(tensor), tensor)
-        return replaced_tensor
 
     def _replace_nan(self, tensor: torch.Tensor) -> torch.Tensor:
         """Replaces NaN values in a tensor with zeros."""

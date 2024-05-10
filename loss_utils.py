@@ -14,7 +14,6 @@ from pytorch_msssim import ssim
 import torch
 import torch.nn.functional as F
 
-
 def custom_ssim_loss(
     targets: torch.Tensor,
     outputs: torch.Tensor,
@@ -23,23 +22,29 @@ def custom_ssim_loss(
     """
     custom_ssim_loss: Calculate the SSIM and MSE between
     the target and output images.
+    
     Parameters:
-    - y_true: The true image.
-    - y_pred: The predicted image.
     - targets: The target tensor.
     - outputs: The output tensor.
-    - data_range: The range of the data.
-      Default is 255.0 for images in the 0-255 range.
+    - data_range: The range of the data, default is 255.0 for images in the 0-255 range.
 
     Returns:
-    - A tuple containing the  total loss, loss_1, and loss_2.
+    - A tuple containing the total loss, SSIM loss, and MSE loss.
     """
+    # Assert that both targets and outputs are tensors
+    assert isinstance(targets, torch.Tensor), "Expected 'targets' to be a PyTorch Tensor"
+    assert isinstance(outputs, torch.Tensor), "Expected 'outputs' to be a PyTorch Tensor"
+
+    # Assert that targets and outputs have the same dimensions
+    assert targets.shape == outputs.shape, "Targets and outputs must have the same dimensions"
+
     # Calculate SSIM
     ssim_val = ssim(targets, outputs, data_range=data_range)
-
+    ssim_val = torch.clamp(ssim_val, min=1e-7)
     # Calculate losses
-    loss_1 = 1 - ssim_val
-    loss_2 = F.mse_loss(targets, outputs)
-    total_loss = loss_1 + loss_2
+    loss_1 = 1 - ssim_val  # SSIM loss component
+    loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
+    loss_2 = loss_2 + 1e-7
+    total_loss = loss_1 + loss_2  # Combined loss
 
     return total_loss, loss_1, loss_2
