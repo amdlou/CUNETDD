@@ -83,7 +83,7 @@ CPU Usage: Set `gpus=None` to force training on the CPU when GPU resources are u
 
 Single GPU: Set `gpus=1` to utilize a single GPU for training, harnessing GPU acceleration for faster computations.
 
-Multi-GPU Strategy: Use `gpus=4` and `accelerator='ddp'` (or choose another strategy like 'ddp2' or 'horovod' depending on your specific needs) for distributed training across multiple GPUs, optimizing performance and scaling.
+Multi-GPU Strategy: Use `gpus=4` and `strategy='ddp'` (or choose another strategy like 'ddp2' or 'horovod' depending on your specific needs) for distributed training across multiple GPUs, optimizing performance and scaling.
 
 Synchronized Batch Normalization: Enable `sync_batchnorm=True` when using multiple GPUs to ensure consistent batch normalization across all devices.
 
