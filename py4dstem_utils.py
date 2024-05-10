@@ -7,6 +7,7 @@ in an image and score the detection results.
 import os
 import math
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 import numpy as np
 import py4DSTEM
 
@@ -68,8 +69,8 @@ class Peakdet(object):
               prediction,
               tr_image=None,
               pred_image=None,
-              cutoff=0.3,
-              pixel_size=0.0217,
+              cutoff=0.04,
+              pixel_size=0.02,
               integrate_disk=False):
         """
         Compute the accuracy of the disk detection.
@@ -238,23 +239,31 @@ class Accuracy:
             _, accuracy, _, _ = self.model.score(
                                 ground_truth=(gt_peaks['qx'],
                                               gt_peaks['qy'],
-                                              gt_peaks['intensity']),
-                                              prediction=(pred_peaks['qx'],
-                                              pred_peaks['qy'],
-                                            pred_peaks['intensity']),)
+                                              gt_peaks['intensity']), prediction=(pred_peaks['qx'], pred_peaks['qy'], pred_peaks['intensity']),)
             # Combined plot configuration
             fig, axs = plt.subplots(1, 2, figsize=(20, 5))  # 1 row, 2 columns
 
             # Plot peak coordinates
             axs[0].scatter(gt_peaks['qx'], gt_peaks['qy'], c='blue',
-                           label=f'GT (Acc: {accuracy:.2f})', alpha=0.5)
+                           label=f'GT (Acc: {accuracy:.2f})',
+                           alpha=1, marker='x')
             axs[0].scatter(pred_peaks['qx'], pred_peaks['qy'], c='red',
                            label='Pred', alpha=0.5)
+            # Calculate Euclidean distances and add circles for close points
+            for (pred_x, pred_y) in zip(pred_peaks['qx'], pred_peaks['qy']):
+                for (gt_x, gt_y) in zip(gt_peaks['qx'], gt_peaks['qy']):
+                    dist = np.sqrt((gt_x - pred_x)**2 + (gt_y - pred_y)**2)
+                    if dist < 2:
+                        circle = Circle((pred_x, pred_y), 6, color='black',
+                                        fill=False, linewidth=2, zorder=3)
+                        axs[0].add_patch(circle)
+                        break
+            # break the inner loop as soon as a close enough point is found
             axs[0].set_title("Peaks")
             axs[0].set_xlabel("qx")
             axs[0].set_ylabel("qy")
             axs[0].legend()
-            axs[0].grid(True)
+            axs[0].grid(False)
             max_length = max(len(gt_peaks['intensity']),
                              len(pred_peaks['intensity']))
             gt = np.pad(gt_peaks['intensity'],
@@ -270,7 +279,6 @@ class Accuracy:
             # Normalize Predicted intensities
             pred_min, pred_max = np.min(pred), np.max(pred)
             pred = (pred - pred_min) / ((pred_max - pred_min)+1e-7)
-
             axs[1].scatter(gt, pred, alpha=0.5, c='blue', marker='o',
                            label='GT vs. Pred')
 
