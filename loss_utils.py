@@ -44,7 +44,6 @@ def custom_ssim_loss(
     # Calculate losses
     loss_1 = 1 - ssim_val  # SSIM loss component
     loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
-    loss_2 = loss_2 + 1e-7
     total_loss = loss_1 + loss_2  # Combined loss
 
     return total_loss, loss_1, loss_2
