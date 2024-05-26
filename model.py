@@ -50,7 +50,6 @@ class AttentionGate(nn.Module):
         )
 
         self.W_x = nn.Sequential(
-            #Conv2D(in_channels=self.in_channels, n_filters=self.in_channels),  # Add this line
             ConvSpec2D(in_channels=self.gating_channels, n_filters=self.in_channels),
         )
 
@@ -212,10 +211,10 @@ class ComplexUNet(nn.Module):
                                                bias, batchnorm))
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
                                                      mode='bilinear'))
-            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels))  # Add this line
+            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels))
             current_channels = upsample_channels
             current_image_size *= 2
-        
+
         self.additional_conv = ConvSpec2D(current_channels, filter_size, 3,
                                           n_depth, activation, dp_rate,
                                           bias, batchnorm)
@@ -261,7 +260,7 @@ class ComplexUNet(nn.Module):
             x = self.decoder[i + 1](x)  # Upsampling
             skip_connection = skips.pop()
             x = self.attention_blocks[i // 2](x, skip_connection)
-            
+     
             x = torch.cat((x, skip_connection), dim=1)
         # Last decoder block
         x = self.decoder[-2](x)  # Last Convolution
