@@ -87,67 +87,36 @@ class AttentionGate(nn.Module):
         x=torch.cat((real_product, imag_product), dim=1)
 
         return x
-
+    
 class RelativePositionalEmbedding(nn.Module):
-    """
-    A module that generates relative positional embeddings for input sequences.
-
-    Args:
-        d_model (int): The dimensionality of the embedding vectors.
-        max_len (int, optional): The maximum length of the input sequences. Defaults to 5000.
-
-    Attributes:
-        d_model (int): The dimensionality of the embedding vectors.
-        max_len (int): The maximum length of the input sequences.
-        embedding (nn.Embedding): The embedding layer used to generate the positional embeddings.
-
-    Methods:
-        forward(x): Performs a forward pass of the module.
-        generate_relative_positions_matrix(length, max_length): Generates the relative positions matrix.
-
-    """
-
-    def __init__(self, input_channel, d_model):
+    def __init__(self, d_model, height_max=256, width_max=256):
         super().__init__()
         self.d_model = d_model
-        self.max_len = d_model*d_model
-        self.input_channel = input_channel
-        self.embedding = nn.Embedding(2*self.max_len-1, d_model)
+        self.height_max = height_max
+        self.width_max = width_max
+        self.embedding = nn.Embedding(2*(height_max*width_max)-1, d_model)
 
     def forward(self, x):
-        """
-        Performs a forward pass of the module.
-
-        Args:
-            x (torch.Tensor): The input tensor of shape (batch_size, seq_len).
-
-        Returns:
-            torch.Tensor: The input tensor with the positional embeddings added.
-
-        """
-        position_matrix = self.generate_relative_positions_matrix(self.input_channel, self.max_len).to(x.device)
+        batch_size, _, height, width = x.shape
+        position_matrix = self.generate_relative_positions_matrix(height, width).to(x.device)
+        position_matrix = position_matrix.view(height, width, -1).repeat(batch_size, 1, 1, 1)
         embeddings = self.embedding(position_matrix)
-        return x.add_(embeddings)
+        return x + embeddings
 
-    def generate_relative_positions_matrix(self, length, max_length):
-        """
-        Generates the relative positions matrix.
-
-        Args:
-            length (int): The length of the input sequence.
-            max_length (int): The maximum length of the input sequences.
-
-        Returns:
-            torch.Tensor: The relative positions matrix of shape (length, length).
-
-        """
-        range_vec = torch.arange(length)
-        range_mat = range_vec[None, :].expand(length, length)
-        distance_mat = range_mat - torch.t(range_mat)
-        distance_mat_clipped = torch.clamp(distance_mat, -max_length, max_length)
-        final_mat = distance_mat_clipped + max_length - 1
+    def generate_relative_positions_matrix(self, height, width):
+        range_vec_h = torch.arange(height)
+        range_vec_w = torch.arange(width)
+        range_mat_h = range_vec_h[None, :].expand(height, height)
+        range_mat_w = range_vec_w[None, :].expand(width, width)
+        distance_mat_h = range_mat_h - torch.t(range_mat_h)
+        distance_mat_w = range_mat_w - torch.t(range_mat_w)
+        distance_mat_h = distance_mat_h.view(height, height, 1, 1)
+        distance_mat_w = distance_mat_w.view(1, 1, width, width)
+        distance_mat = distance_mat_h + distance_mat_w
+        distance_mat_clipped = torch.clamp(distance_mat, -self.height_max*self.width_max, self.height_max*self.width_max)
+        final_mat = distance_mat_clipped + self.height_max*self.width_max - 1
         return final_mat
-
+                          
 class ComplexUNet(nn.Module):
     """
     ComplexUNet model implementation.
@@ -182,7 +151,7 @@ class ComplexUNet(nn.Module):
                                        bias, batchnorm)
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
-        self.pos_embedding = RelativePositionalEmbedding(input_channel, d_model=256)
+        self.pos_embedding = RelativePositionalEmbedding(d_model=256)
         self.attention_blocks = nn.ModuleList()
         current_channels = filter_size
         max_channels = 256
