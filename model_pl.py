@@ -72,10 +72,10 @@ class ComplexUNetLightning(pl.LightningModule):
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
                  plot_frequency: int = 10,
-                 num_workers: int = 4, shuffle: bool = True,
+                 num_workers: int = 0, shuffle: bool = True,
                  drop_last: bool = True, pin_memory: bool = False,
                  persistent_workers: bool = False,
-                 num_images_to_plot: int = 4) -> None:
+                 ) -> None:
         super().__init__()
         self.complex_unet = ComplexUNet(input_channel, image_size, filter_size,
                                         n_depth, dp_rate, activation)
@@ -86,12 +86,11 @@ class ComplexUNetLightning(pl.LightningModule):
         self.pin_memory = pin_memory
         self.persistent_workers = persistent_workers
         self.drop_last = drop_last
-        self.num_images_to_plot = num_images_to_plot
+        #self.num_images_to_plot = num_images_to_plot
         self.loss: List[float] = []
         self.epochs: List[int] = []
         self.targets: List[torch.Tensor] = []
         self.outputs: List[torch.Tensor] = []
-        self.learning_rate = learning_rate
         self.sample_counter = 0
         self.plot_frequency = plot_frequency
         self.val_dataset_dir = val_dataset_dir
@@ -165,7 +164,7 @@ class ComplexUNetLightning(pl.LightningModule):
         Get the DataLoader for the validation dataset.
         """
         return DataLoader(self.val_dataset, batch_size=self.batch_size,
-                          shuffle=True, num_workers=self.num_workers,
+                          shuffle=False, num_workers=self.num_workers,
                           pin_memory=self.pin_memory, drop_last=True,
                           persistent_workers=self.persistent_workers)
 
@@ -178,7 +177,7 @@ class ComplexUNetLightning(pl.LightningModule):
                           pin_memory=self.pin_memory, drop_last=True,
                           persistent_workers=self.persistent_workers)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch):
         """
         Perform a single training step.
 
@@ -213,7 +212,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.outputs.clear()
         self.sample_counter = 0
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch):
         """
         Perform a validation step.
 
@@ -239,7 +238,7 @@ class ComplexUNetLightning(pl.LightningModule):
             self.log('accuracy', float(accuracy), sync_dist=True)
             return {'val_loss': total_loss}
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch):
         """
         Perform a test step.
 
@@ -310,9 +309,8 @@ class ComplexUNetLightning(pl.LightningModule):
         # Convert tensors to numpy arrays for plotting
         targets_np = targets.cpu().to(torch.float32).numpy()
         outputs_np = outputs.cpu().to(torch.float32).numpy()
-        plt_coord = self.acc.plot_coord(targets_np, outputs_np,
-                                        num_images_to_plot, save_dir)
-
+        self.acc.plot_coord(targets_np, outputs_np,
+                            num_images_to_plot, save_dir)
         # Save images
         self.save_images(targets_np, outputs_np, num_images_to_plot, save_dir)
 

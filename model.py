@@ -37,11 +37,12 @@ class AttentionGate(nn.Module):
 
     """
 
-    def __init__(self, in_channels, gating_channels, inter_channels=None):
+    def __init__(self, in_channels, gating_channels, inter_channels=None, pos_embedding=None):
         super().__init__()
 
         self.in_channels = in_channels
         self.gating_channels = gating_channels
+        self.pos_embedding = pos_embedding
 
         self.inter_channels = in_channels // 2 if inter_channels is None else inter_channels
 
@@ -77,7 +78,8 @@ class AttentionGate(nn.Module):
         x1 = self.W_x(x)
         psi = self.relu(g1 + x1)
         psi = self.psi(psi)
-        upsample_psi = F.interpolate(psi, size=(shape_x[2], shape_x[3]), mode='bilinear', align_corners=True)
+        upsample_psi = F.interpolate(psi, size=(shape_x[2], shape_x[3]),
+                                     mode='bilinear', align_corners=True)
         real_psi, imag_psi = torch.chunk(upsample_psi, 2, dim=1)
         real_x, imag_x = torch.chunk(x, 2, dim=1)
         real_product = real_psi * real_x
@@ -88,45 +90,56 @@ class AttentionGate(nn.Module):
 
 class RelativePositionalEmbedding(nn.Module):
     """
-    Initialize the RelativePositionalEmbedding module.
+    A module that generates relative positional embeddings for input sequences.
 
     Args:
-        d_model (int): The dimension of the input and output tensors.
-        max_len (int, optional): The maximum length of the input sequence. Defaults to 5000.
-    """
-    def __init__(self, d_model, max_len=5000):
+        d_model (int): The dimensionality of the embedding vectors.
+        max_len (int, optional): The maximum length of the input sequences. Defaults to 5000.
 
+    Attributes:
+        d_model (int): The dimensionality of the embedding vectors.
+        max_len (int): The maximum length of the input sequences.
+        embedding (nn.Embedding): The embedding layer used to generate the positional embeddings.
+
+    Methods:
+        forward(x): Performs a forward pass of the module.
+        generate_relative_positions_matrix(length, max_length): Generates the relative positions matrix.
+
+    """
+
+    def __init__(self, input_channel, d_model):
         super().__init__()
         self.d_model = d_model
-        self.max_len = max_len
-        self.embedding = nn.Embedding(2*max_len-1, d_model)
+        self.max_len = d_model*d_model
+        self.input_channel = input_channel
+        self.embedding = nn.Embedding(2*self.max_len-1, d_model)
 
     def forward(self, x):
         """
-        Forward pass of the model.
+        Performs a forward pass of the module.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, seq_len, input_dim).
+            x (torch.Tensor): The input tensor of shape (batch_size, seq_len).
 
         Returns:
-            torch.Tensor: Output tensor of shape (batch_size, seq_len, input_dim).
+            torch.Tensor: The input tensor with the positional embeddings added.
+
         """
-        seq_len = x.size(1)
-        position_matrix = self.generate_relative_positions_matrix(seq_len, self.max_len)
-        position_matrix = position_matrix.to(x.device)
+        position_matrix = self.generate_relative_positions_matrix(self.input_channel, self.max_len).to(x.device)
         embeddings = self.embedding(position_matrix)
-        return x + embeddings
+        return x.add_(embeddings)
 
     def generate_relative_positions_matrix(self, length, max_length):
         """
-        Generate a matrix of relative positions.
+        Generates the relative positions matrix.
 
         Args:
-            length (int): The length of the sequence.
-            max_length (int): The maximum length of the sequence.
+            length (int): The length of the input sequence.
+            max_length (int): The maximum length of the input sequences.
 
         Returns:
-            torch.Tensor: A matrix of relative positions.
+            torch.Tensor: The relative positions matrix of shape (length, length).
+
         """
         range_vec = torch.arange(length)
         range_mat = range_vec[None, :].expand(length, length)
@@ -134,7 +147,6 @@ class RelativePositionalEmbedding(nn.Module):
         distance_mat_clipped = torch.clamp(distance_mat, -max_length, max_length)
         final_mat = distance_mat_clipped + max_length - 1
         return final_mat
-
 
 class ComplexUNet(nn.Module):
     """
@@ -170,11 +182,11 @@ class ComplexUNet(nn.Module):
                                        bias, batchnorm)
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
-        self.pos_embedding = RelativePositionalEmbedding(d_model=256)
+        self.pos_embedding = RelativePositionalEmbedding(input_channel, d_model=256)
+        self.attention_blocks = nn.ModuleList()
         current_channels = filter_size
         max_channels = 256
         current_image_size = image_size
-        self.attention_blocks = nn.ModuleList()
 
         # Encoder - Convolution followed by Pooling
         for _ in range(int(np.log2(image_size)) - 1):
@@ -210,8 +222,8 @@ class ComplexUNet(nn.Module):
                                                n_depth, activation, dp_rate,
                                                bias, batchnorm))
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
-                                                     mode='bilinear'))
-            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels))
+                                                      mode='bilinear'))
+            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels,pos_embedding=self.pos_embedding))
             current_channels = upsample_channels
             current_image_size *= 2
 
@@ -231,16 +243,15 @@ class ComplexUNet(nn.Module):
         Forward pass of the CUNETD model.
 
         Args:
-            inputsa (torch.Tensor): Input tensor A.
-            inputsb (torch.Tensor): Input tensor B.
+            inputsa (torch.Tensor): Input tensor A CBED patterns tensor.
+            inputsb (torch.Tensor): Input tensor B Probe patterns tensor.
 
         Returns:
             torch.Tensor: Output tensor after passing through the CUNETD model.
         """
-        inputsaa = self.pos_embedding(inputsa)
-        inputsbb = self.pos_embedding(inputsb)
-        x = self.cross_correlate(inputsaa, inputsbb)
-
+        inputsa = self.pos_embedding(inputsa)
+        inputsb = self.pos_embedding(inputsb)
+        x = self.cross_correlate(inputsa, inputsb)
         x = self.initial_conv(x)
         skips = []
 

@@ -10,7 +10,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 import h5py
-
+from augment import Image_Augmentation
+import tensorflow as tf
 
 def normalize_data(data):
     """
@@ -100,6 +101,8 @@ class ParseDataset(Dataset):
         self.out_channel = out_channel
         self.lengths = [25 for _ in self.file_lists]
         self.cumulative_lengths = np.cumsum(self.lengths)
+        self.augmenter = Image_Augmentation()
+
 
     def _filter_valid_files(self, file_lists: List[Path]) -> List[Path]:
         valid_files = []
@@ -114,8 +117,7 @@ class ParseDataset(Dataset):
 
     def _replace_nan(self, tensor: torch.Tensor) -> torch.Tensor:
         """Replaces NaN values in a tensor with zeros."""
-        tensor.masked_fill_(torch.isnan(tensor), 0)
-        return tensor
+        return np.nan_to_num(tensor)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor,
                                              torch.Tensor, torch.Tensor]:
@@ -131,7 +133,16 @@ class ParseDataset(Dataset):
         cbed = data_meas.unsqueeze(0)
         probe = data_probe.unsqueeze(0)
         pot = data_pots.unsqueeze(0)
+        batch_size = 32
+        # Expand dimensions
+        cbed1 = tf.expand_dims(cbed, axis=-1)  # Now `cbed1` has shape (1, 256, 256, 1)
+        probe1 = tf.expand_dims(probe, axis=-1)  # Now `probe1` has shape (1, 256, 256, 1)
 
+        # Replicate along the batch dimension
+        cbed1 = tf.tile(cbed1, [batch_size, 1, 1, 1])  # Now `cbed1` has shape (batch_size, 256, 256, 1)
+        probe1 = tf.tile(probe1, [batch_size, 1, 1, 1])  # Now `probe1` has shape (batch_size, 256, 256, 1)
+
+        cbed = self.augmenter.augment_img(cbed1, probe1)
         return (self._replace_nan(cbed), self._replace_nan(probe),
                 self._replace_nan(pot))
 
