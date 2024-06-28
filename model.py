@@ -1,4 +1,3 @@
-
 """FCU_net model implementation.
    Disentangling multiple scattering with deep learning:
    application to strain mapping from electron diffraction patterns
@@ -18,23 +17,14 @@ from utils import cross_correlate_fft, cross_correlate_ifft
 from utils import ConvSpec2D, Conv2D, ComplexUpsample2d
 
 class AttentionGate(nn.Module):
-    """
-    AttentionGate module that performs attention mechanism on input tensors.
+    """S
+    AttentionGate module that performs attention mechanism on input feature maps.
 
     Args:
         in_channels (int): Number of input channels.
         gating_channels (int): Number of gating channels.
         inter_channels (int, optional): Number of intermediate channels. Defaults to None.
-
-    Attributes:
-        in_channels (int): Number of input channels.
-        gating_channels (int): Number of gating channels.
-        inter_channels (int): Number of intermediate channels.
-        W_g (nn.Sequential): Sequential module for gating channel convolution.
-        W_x (nn.Sequential): Sequential module for input channel convolution.
-        psi (nn.Sequential): Sequential module for sigmoid activation.
-        relu (nn.ReLU): ReLU activation function.
-
+        pos_embedding (object, optional): Positional embedding object. Defaults to None.
     """
 
     def __init__(self, in_channels, gating_channels, inter_channels=None, pos_embedding=None):
@@ -42,10 +32,9 @@ class AttentionGate(nn.Module):
 
         self.in_channels = in_channels
         self.gating_channels = gating_channels
-        self.pos_embedding = pos_embedding
-
+        self.pos_embedding = RelativePositionalEmbedding(d_model=256)
         self.inter_channels = in_channels // 2 if inter_channels is None else inter_channels
-
+        
         self.W_g = nn.Sequential(
             ConvSpec2D(in_channels=self.gating_channels, n_filters=self.in_channels),
         )
@@ -66,57 +55,67 @@ class AttentionGate(nn.Module):
         Forward pass of the AttentionGate module.
 
         Args:
-            g (torch.Tensor): Gating tensor.
-            x (torch.Tensor): Input tensor.
+            g (torch.Tensor): Gating input tensor.
+            x (torch.Tensor): Feature map input tensor.
 
         Returns:
-            torch.Tensor: Output tensor after attention mechanism.
-
+            torch.Tensor: Output tensor after applying attention mechanism.
         """
         shape_x = x.size()
-        g1 = self.W_g(g)
-        x1 = self.W_x(x)
+
+        # Query and Key transformations
+        g1 = self.W_g(g)  # Query vector Q
+        x1 = self.W_x(x)  # Key vector K
+
+        # Compute attention coefficients
         psi = self.relu(g1 + x1)
         psi = self.psi(psi)
-        upsample_psi = F.interpolate(psi, size=(shape_x[2], shape_x[3]),
-                                     mode='bilinear', align_corners=True)
+
+        # Upsample and apply attention
+        upsample_psi = F.interpolate(psi, size=(shape_x[2], shape_x[3]), mode='bilinear', align_corners=True)
         real_psi, imag_psi = torch.chunk(upsample_psi, 2, dim=1)
         real_x, imag_x = torch.chunk(x, 2, dim=1)
+
+        # Value vector V is the same as the feature map from the encoder
         real_product = real_psi * real_x
         imag_product = imag_psi * imag_x
-        x=torch.cat((real_product, imag_product), dim=1)
-
+        x = torch.cat((real_product, imag_product), dim=1)
         return x
-    
+
+
 class RelativePositionalEmbedding(nn.Module):
+    """
+    Class representing the relative positional embedding module.
+
+    Args:
+        d_model (int): The dimensionality of the model.
+        height_max (int, optional): The maximum height value. Defaults to 256.
+        width_max (int, optional): The maximum width value. Defaults to 256.
+    """
+
     def __init__(self, d_model, height_max=256, width_max=256):
         super().__init__()
-        self.d_model = d_model
-        self.height_max = height_max
-        self.width_max = width_max
-        self.embedding = nn.Embedding(2*(height_max*width_max)-1, d_model)
+        self.embedding_height = nn.Embedding(2 * height_max - 1, d_model)
+        self.embedding_width = nn.Embedding(2 * width_max - 1, d_model)
+        nn.init.xavier_uniform_(self.embedding_height.weight)
+        nn.init.xavier_uniform_(self.embedding_width.weight)
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size, channels, height, width = x.size()
+        # Calculate positional embeddings for height dimension
+        positions_height = torch.arange(height, device=x.device).unsqueeze(0)
+        S_height = self.embedding_height(positions_height)
+        S_height = S_height.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, width, -1)
 
-    def forward(self, x):
-        batch_size, _, height, width = x.shape
-        position_matrix = self.generate_relative_positions_matrix(height, width).to(x.device)
-        position_matrix = position_matrix.view(height, width, -1).repeat(batch_size, 1, 1, 1)
-        embeddings = self.embedding(position_matrix)
-        return x + embeddings
-
-    def generate_relative_positions_matrix(self, height, width):
-        range_vec_h = torch.arange(height)
-        range_vec_w = torch.arange(width)
-        range_mat_h = range_vec_h[None, :].expand(height, height)
-        range_mat_w = range_vec_w[None, :].expand(width, width)
-        distance_mat_h = range_mat_h - torch.t(range_mat_h)
-        distance_mat_w = range_mat_w - torch.t(range_mat_w)
-        distance_mat_h = distance_mat_h.view(height, height, 1, 1)
-        distance_mat_w = distance_mat_w.view(1, 1, width, width)
-        distance_mat = distance_mat_h + distance_mat_w
-        distance_mat_clipped = torch.clamp(distance_mat, -self.height_max*self.width_max, self.height_max*self.width_max)
-        final_mat = distance_mat_clipped + self.height_max*self.width_max - 1
-        return final_mat
-                          
+        # Calculate positional embeddings for width dimension
+        positions_width = torch.arange(width, device=x.device).unsqueeze(0)
+        S_width = self.embedding_width(positions_width)
+        S_width = S_width.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, height, -1)
+        S_width = S_width.permute(0, 1, 3, 2)
+        # Combine positional embeddings for height and width
+        S = S_height + S_width
+        return S
+    
 class ComplexUNet(nn.Module):
     """
     ComplexUNet model implementation.
@@ -151,7 +150,7 @@ class ComplexUNet(nn.Module):
                                        bias, batchnorm)
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
-        self.pos_embedding = RelativePositionalEmbedding(d_model=256)
+        self.pos_embedding = RelativePositionalEmbedding(d_model=512)  # Uncommented this line
         self.attention_blocks = nn.ModuleList()
         current_channels = filter_size
         max_channels = 256
@@ -192,7 +191,7 @@ class ComplexUNet(nn.Module):
                                                bias, batchnorm))
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
                                                       mode='bilinear'))
-            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels,pos_embedding=self.pos_embedding))
+            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels, pos_embedding=self.pos_embedding))
             current_channels = upsample_channels
             current_image_size *= 2
 
@@ -218,11 +217,11 @@ class ComplexUNet(nn.Module):
         Returns:
             torch.Tensor: Output tensor after passing through the CUNETD model.
         """
-        inputsa = self.pos_embedding(inputsa)
-        inputsb = self.pos_embedding(inputsb)
+
         x = self.cross_correlate(inputsa, inputsb)
         x = self.initial_conv(x)
         skips = []
+        pos_embs = []
 
         # Encoder path
         # Step by 2 to handle conv+pool pairs
@@ -230,8 +229,14 @@ class ComplexUNet(nn.Module):
             x = self.encoder[i](x)  # Convolution
             x = self.encoder[i + 1](x)  # Pooling
             skips.append(x)
+            # Calculate positional embeddings for each skip connection
+            _, channels, _, _ = x.size()
+            self.pos_embedding = RelativePositionalEmbedding(d_model=channels)
+            pos_emb = self.pos_embedding(x)
+            pos_embs.append(pos_emb)
 
         skip_connection = skips.pop()  # Remove the last skip connection
+        pos_emb = pos_embs.pop()  # Remove the last positional embedding
 
         # Decoder path
         for i in range(0, len(self.decoder) - 2, 2):
@@ -239,8 +244,8 @@ class ComplexUNet(nn.Module):
             x = self.decoder[i](x)  # Convolution
             x = self.decoder[i + 1](x)  # Upsampling
             skip_connection = skips.pop()
-            x = self.attention_blocks[i // 2](x, skip_connection)
-     
+            pos_emb = pos_embs.pop()  # Get the corresponding positional embedding
+            x = self.attention_blocks[i // 2](x + pos_emb, skip_connection + pos_emb)
             x = torch.cat((x, skip_connection), dim=1)
         # Last decoder block
         x = self.decoder[-2](x)  # Last Convolution
@@ -251,4 +256,3 @@ class ComplexUNet(nn.Module):
         x = self.final_conv(x)
         x = self.actv(x)
         return x
-    
