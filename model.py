@@ -27,12 +27,11 @@ class AttentionGate(nn.Module):
         pos_embedding (object, optional): Positional embedding object. Defaults to None.
     """
 
-    def __init__(self, in_channels, gating_channels, inter_channels=None, pos_embedding=None):
+    def __init__(self, in_channels, gating_channels, inter_channels=None):
         super().__init__()
 
         self.in_channels = in_channels
         self.gating_channels = gating_channels
-        self.pos_embedding = RelativePositionalEmbedding(d_model=256)
         self.inter_channels = in_channels // 2 if inter_channels is None else inter_channels
         
         self.W_g = nn.Sequential(
@@ -194,7 +193,7 @@ class ComplexUNet(nn.Module):
                                                bias, batchnorm))
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
                                                       mode='bilinear'))
-            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels, pos_embedding=self.pos_embedding))
+            self.attention_blocks.append(AttentionGate(current_channels, upsample_channels))
             current_channels = upsample_channels
             current_image_size *= 2
 
