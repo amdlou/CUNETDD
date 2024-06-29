@@ -62,9 +62,8 @@ class AttentionGate(nn.Module):
             torch.Tensor: Output tensor after applying attention mechanism.
         """
         shape_x = x.size()
-
         # Query and Key transformations
-        g1 = self.W_g(g)  # Query vector Q
+        g1 = self.W_g(g.to(x.device))  # Query vector Q
         x1 = self.W_x(x)  # Key vector K
 
         # Compute attention coefficients
@@ -106,11 +105,13 @@ class RelativePositionalEmbedding(nn.Module):
 
         # Calculate positional embeddings for height dimension
         positions_height = torch.arange(height, device=device).unsqueeze(0)  # Ensure positions_height is on the same device
+        self.embedding_height = self.embedding_height.to(device)  # Move embedding_height to the same device
         S_height = self.embedding_height(positions_height)
         S_height = S_height.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, width, -1)
 
         # Calculate positional embeddings for width dimension
         positions_width = torch.arange(width, device=device).unsqueeze(0)  # Ensure positions_width is on the same device
+        self.embedding_width = self.embedding_width.to(device)  # Move embedding_width to the same device
         S_width = self.embedding_width(positions_width)
         S_width = S_width.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, height, -1)
         S_width = S_width.permute(0, 1, 3, 2)
