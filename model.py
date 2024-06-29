@@ -99,23 +99,25 @@ class RelativePositionalEmbedding(nn.Module):
         self.embedding_width = nn.Embedding(2 * width_max - 1, d_model)
         nn.init.xavier_uniform_(self.embedding_height.weight)
         nn.init.xavier_uniform_(self.embedding_width.weight)
-        
+            
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         batch_size, channels, height, width = x.size()
+        device = x.device  # Get the device of the input tensor
+
         # Calculate positional embeddings for height dimension
-        positions_height = torch.arange(height, device=x.device).unsqueeze(0)
+        positions_height = torch.arange(height, device=device).unsqueeze(0)  # Ensure positions_height is on the same device
         S_height = self.embedding_height(positions_height)
         S_height = S_height.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, width, -1)
 
         # Calculate positional embeddings for width dimension
-        positions_width = torch.arange(width, device=x.device).unsqueeze(0)
+        positions_width = torch.arange(width, device=device).unsqueeze(0)  # Ensure positions_width is on the same device
         S_width = self.embedding_width(positions_width)
         S_width = S_width.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, height, -1)
         S_width = S_width.permute(0, 1, 3, 2)
         # Combine positional embeddings for height and width
         S = S_height + S_width
         return S
-    
+        
 class ComplexUNet(nn.Module):
     """
     ComplexUNet model implementation.
