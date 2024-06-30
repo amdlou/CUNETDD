@@ -152,7 +152,7 @@ class ComplexUNet(nn.Module):
                                        bias, batchnorm)
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
-        self.pos_embedding = RelativePositionalEmbedding(d_model=512)  # Uncommented this line
+        self.pos_embedding = RelativePositionalEmbedding(d_model=512)
         self.attention_blocks = nn.ModuleList()
         current_channels = filter_size
         max_channels = 256
@@ -219,6 +219,9 @@ class ComplexUNet(nn.Module):
         Returns:
             torch.Tensor: Output tensor after passing through the CUNETD model.
         """
+        device = inputsa.device  # Get the device of the input tensors
+        inputsa = inputsa.to(device)  # Ensure inputsa is on the correct device
+        inputsb = inputsb.to(device)  # Ensure inputsb is on the correct device
 
         x = self.cross_correlate(inputsa, inputsb)
         x = self.initial_conv(x)

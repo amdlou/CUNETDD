@@ -114,6 +114,9 @@ class ComplexUNetLightning(pl.LightningModule):
         Returns:
             torch.Tensor: The output of the complex UNet model.
         """
+        device = next(self.complex_unet.parameters()).device
+        inputs_cb = inputs_cb.to(device)
+        inputs_pr = inputs_pr.to(device)
         return self.complex_unet(inputs_cb, inputs_pr)
 
     def collect_samples(self, targets: torch.Tensor,
