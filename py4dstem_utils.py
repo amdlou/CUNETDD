@@ -69,8 +69,8 @@ class Peakdet(object):
               prediction,
               tr_image=None,
               pred_image=None,
-              cutoff=0.04,
-              pixel_size=0.02,
+              cutoff=0.05,
+              pixel_size=0.1,
               integrate_disk=False):
         """
         Compute the accuracy of the disk detection.
