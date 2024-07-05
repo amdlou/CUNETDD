@@ -8,6 +8,7 @@
    The model is based on the U-Net architecture and is designed to
    process complex-valued input data.
 """
+import math
 from typing import Optional, Type
 import torch
 from torch import nn
@@ -15,6 +16,7 @@ import torch.nn.functional as F
 import numpy as np
 from utils import cross_correlate_fft, cross_correlate_ifft
 from utils import ConvSpec2D, Conv2D, ComplexUpsample2d
+
 
 class AttentionGate(nn.Module):
     """S
@@ -81,6 +83,25 @@ class AttentionGate(nn.Module):
         return x
 
 
+def sinusoidal_embeddings(dim, max_len):
+    """
+    Generate sinusoidal embeddings.
+
+    Args:
+        dim (int): The dimension of the embeddings.
+        max_len (int): The maximum length of the sequence.
+
+    Returns:
+        torch.Tensor: The sinusoidal embeddings of shape (max_len, dim).
+    """
+    pe = torch.zeros(max_len, dim)
+    position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0, dim, 2).float() * -(math.log(10000.0) / dim))
+    pe[:, 0::2] = torch.sin(position * div_term)
+    pe[:, 1::2] = torch.cos(position * div_term)
+    return pe
+
+
 class RelativePositionalEmbedding(nn.Module):
     """
     Class representing the relative positional embedding module.
@@ -93,13 +114,13 @@ class RelativePositionalEmbedding(nn.Module):
 
     def __init__(self, d_model, height_max=256, width_max=256):
         super().__init__()
-        self.embedding_height = nn.Embedding(2 * height_max - 1, d_model)
-        self.embedding_width = nn.Embedding(2 * width_max - 1, d_model)
-        nn.init.xavier_uniform_(self.embedding_height.weight)
-        nn.init.xavier_uniform_(self.embedding_width.weight)
-            
+        self.embedding_height = nn.Embedding.from_pretrained(
+            sinusoidal_embeddings(d_model, 2 * height_max - 1), freeze=True)
+        self.embedding_width = nn.Embedding.from_pretrained(
+            sinusoidal_embeddings(d_model, 2 * width_max - 1), freeze=True)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size, channels, height, width = x.size()
+        batch_size, _, height, width = x.size()
         device = x.device  # Get the device of the input tensor
 
         # Calculate positional embeddings for height dimension
@@ -114,10 +135,12 @@ class RelativePositionalEmbedding(nn.Module):
         S_width = self.embedding_width(positions_width)
         S_width = S_width.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, height, -1)
         S_width = S_width.permute(0, 1, 3, 2)
+
         # Combine positional embeddings for height and width
         S = S_height + S_width
         return S
-        
+
+
 class ComplexUNet(nn.Module):
     """
     ComplexUNet model implementation.
