@@ -322,27 +322,27 @@ class ComplexUNetLightning(pl.LightningModule):
         self.targets = []
         self.outputs = []
 
-def on_validation_epoch_end(self, num_images_to_plot=10):
-    if self.current_epoch % self.plot_frequency == 0:
-        main_folder = "validation_image"
-        sub_folder = f"{main_folder}/epoch{self.current_epoch}"
-        self.process_epoch_end(num_images_to_plot, sub_folder)
-        
-        # Plot validation loss history
-        plt.figure(figsize=(10, 5))
-        plt.plot(self.validation_loss_history, label='Validation Loss')
-        plt.xlabel('Epochs')
-        plt.ylabel('Loss')
-        plt.title('Validation Loss History')
-        plt.legend()
-        plt.grid(True)
-        
-        # Save the plot in the training plot folder
-        save_dir = "loss_plot"
-        os.makedirs(save_dir, exist_ok=True)
-        plt.savefig(os.path.join(save_dir,
-                                 f"validation_loss_{self.current_epoch}.png"))
-        plt.close()
+    def on_validation_epoch_end(self, num_images_to_plot=10):
+        if self.current_epoch % self.plot_frequency == 0:
+            main_folder = "validation_image"
+            sub_folder = f"{main_folder}/epoch{self.current_epoch}"
+            self.process_epoch_end(num_images_to_plot, sub_folder)
+            
+            # Plot validation loss history
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.validation_loss_history, label='Validation Loss')
+            plt.xlabel('Epochs')
+            plt.ylabel('Loss')
+            plt.title('Validation Loss History')
+            plt.legend()
+            plt.grid(True)
+            
+            # Save the plot in the training plot folder
+            save_dir = "loss_plot"
+            os.makedirs(save_dir, exist_ok=True)
+            plt.savefig(os.path.join(save_dir,
+                                    f"validation_loss_{self.current_epoch}.png"))
+            plt.close()
 
     def on_test_epoch_end(self, num_images_to_plot=10):
         self.process_epoch_end(num_images_to_plot, "test_image")
