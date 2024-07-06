@@ -19,7 +19,7 @@ from utils import ConvSpec2D, Conv2D, ComplexUpsample2d
 
 
 class AttentionGate(nn.Module):
-    """S
+    """
     AttentionGate module that performs attention mechanism on input feature maps.
 
     Args:
