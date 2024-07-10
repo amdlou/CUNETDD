@@ -38,17 +38,17 @@ def configure_callbacks(params) -> List[Callback]:
     Returns:
         list: List of callbacks to be used during training.
     """
-    
+
     early_stop = EarlyStopping(
-        monitor='Train_loss',
+        monitor='val_loss',
         min_delta=0.00,
-        patience=1000,
+        patience=30,
         verbose=True,
         mode='min'
     )
 
     checkpoint = ModelCheckpoint(
-        monitor='Train_loss',
+        monitor='val_loss',
         dirpath=params.checkpoint_dir,
         filename='FCUnet-{epoch:02d}',
         save_top_k=1,
@@ -109,7 +109,7 @@ def main(params: Namespace) -> None:
         accelerator='cpu' if params.gpus is None else 'gpu',
         devices= 1 if params.gpus is None else params.gpus,
         sync_batchnorm=False if params.gpus is None else params.sync_bnorm,
-        strategy=params.strategy,
+#       strategy=params.strategy,
 	    num_nodes=params.num_nodes,
         callbacks=configure_callbacks(params),
         fast_dev_run=params.fast_dev_run,
