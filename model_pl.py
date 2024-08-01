@@ -88,6 +88,8 @@ class ComplexUNetLightning(pl.LightningModule):
         self.drop_last = drop_last
         #self.num_images_to_plot = num_images_to_plot
         self.loss: List[float] = []
+        self.val_loss: List[float] = []
+        self.val_epochs = []
         self.epochs: List[int] = []
         self.validation_loss_history = []
         self.targets: List[torch.Tensor] = []
@@ -240,6 +242,8 @@ class ComplexUNetLightning(pl.LightningModule):
             self.log('val_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.log('accuracy', float(accuracy), sync_dist=True)
+            # Append the validation loss to the history
+            self.validation_loss_history.append(total_loss.item())
             return {'val_loss': total_loss}
 
     def test_step(self, batch):
@@ -322,26 +326,27 @@ class ComplexUNetLightning(pl.LightningModule):
         self.targets = []
         self.outputs = []
 
-    def on_validation_epoch_end(self, num_images_to_plot=10):
+    def on_validation_epoch_end(self):
+        avg_loss = self.trainer.callback_metrics['val_loss']
+        if isinstance(avg_loss, torch.Tensor):
+            avg_loss = avg_loss.cpu().numpy()
+
+        self.val_loss.append(avg_loss)
+        self.val_epochs.append(self.current_epoch)
+
+        # Check if the current epoch is a multiple of 10
         if self.current_epoch % self.plot_frequency == 0:
-            main_folder = "validation_image"
-            sub_folder = f"{main_folder}/epoch{self.current_epoch}"
-            self.process_epoch_end(num_images_to_plot, sub_folder)
-            
-            # Plot validation loss history
-            plt.figure(figsize=(10, 5))
-            plt.plot(self.validation_loss_history, label='Validation Loss')
-            plt.xlabel('Epochs')
+            plt.figure()  # Create a new figure
+            plt.plot(self.val_epochs, self.val_loss, 'bo-')
+            plt.title(f"Validation Loss at Epoch {self.current_epoch}")
+            plt.xlabel('Epoch')
             plt.ylabel('Loss')
-            plt.title('Validation Loss History')
-            plt.legend()
-            plt.grid(True)
-            
-            # Save the plot in the training plot folder
+
+            # Ensure the directory for saving the plots exists
             save_dir = "loss_plot"
             os.makedirs(save_dir, exist_ok=True)
             plt.savefig(os.path.join(save_dir,
-                                    f"validation_loss_{self.current_epoch}.png"))
+                        f"validation_loss_{self.current_epoch}.png"))
             plt.close()
 
     def on_test_epoch_end(self, num_images_to_plot=10):
