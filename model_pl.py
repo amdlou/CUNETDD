@@ -71,7 +71,7 @@ class ComplexUNetLightning(pl.LightningModule):
                  test_dataset_dir, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
-                 plot_frequency: int = 10,
+                 plot_frequency: int = 10, num_images_to_plot: int = 10,
                  num_workers: int = 0, shuffle: bool = True,
                  drop_last: bool = True, pin_memory: bool = False,
                  persistent_workers: bool = False,
@@ -86,7 +86,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.pin_memory = pin_memory
         self.persistent_workers = persistent_workers
         self.drop_last = drop_last
-        #self.num_images_to_plot = num_images_to_plot
+        self.num_images_to_plot = num_images_to_plot
         self.loss: List[float] = []
         self.val_loss: List[float] = []
         self.val_epochs = []
@@ -142,8 +142,13 @@ class ComplexUNetLightning(pl.LightningModule):
             samples_to_collect = min(targets.size(0),
                                      max_samples - self.sample_counter)
             if samples_to_collect > 0:
-                self.targets.append(targets[:samples_to_collect])
-                self.outputs.append(outputs[:samples_to_collect])
+                # Generate a list of random indices
+                indices = torch.randperm(targets.size(0))[:samples_to_collect]
+
+                # Index into the tensors with the random indices
+                self.targets.append(targets[indices])
+                self.outputs.append(outputs[indices])
+
                 self.sample_counter += samples_to_collect
 
     def setup(self, stage=None):
@@ -345,9 +350,14 @@ class ComplexUNetLightning(pl.LightningModule):
             # Ensure the directory for saving the plots exists
             save_dir = "loss_plot"
             os.makedirs(save_dir, exist_ok=True)
-            plt.savefig(os.path.join(save_dir,
-                        f"validation_loss_{self.current_epoch}.png"))
+            plt.savefig(os.path.join(save_dir, f"validation_loss_{self.current_epoch}.png"))
             plt.close()
+
+            # Add the new code here
+            main_folder = "validation_image"
+            sub_folder = f"{main_folder}/epoch_{self.current_epoch}"
+            print (f"Processing epoch {self.current_epoch} for validation")
+            self.process_epoch_end(self.num_images_to_plot, sub_folder)
 
     def on_test_epoch_end(self, num_images_to_plot=10):
         self.process_epoch_end(num_images_to_plot, "test_image")
