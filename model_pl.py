@@ -24,7 +24,7 @@ from py4dstem_utils import acc
 
 
 # Define MAX_SAMPLES
-MAX_SAMPLES = 10
+MAX_SAMPLES = 1000
 
 def normalize_image(image: np.ndarray) -> np.ndarray:
     """
@@ -75,6 +75,7 @@ class ComplexUNetLightning(pl.LightningModule):
                  num_workers: int = 0, shuffle: bool = True,
                  drop_last: bool = True, pin_memory: bool = False,
                  persistent_workers: bool = False,
+                 image_folder_name: str = 'validation image',
                  ) -> None:
         super().__init__()
         self.complex_unet = ComplexUNet(input_channel, image_size, filter_size,
@@ -87,6 +88,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.persistent_workers = persistent_workers
         self.drop_last = drop_last
         self.num_images_to_plot = num_images_to_plot
+        self.image_folder_name = image_folder_name
         self.loss: List[float] = []
         self.val_loss: List[float] = []
         self.val_epochs = []
@@ -156,11 +158,21 @@ class ComplexUNetLightning(pl.LightningModule):
         Set up the datasets for training, validation, and testing.
         """
         if stage == 'fit' or stage is None:
-            self.train_dataset = ParseDataset(filepath=self.train_dataset_dir)
-            self.val_dataset = ParseDataset(filepath=self.val_dataset_dir)
-        if stage == 'test':
-            self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
+            # Load the dataset once
+            dataset = ParseDataset(filepath=self.train_dataset_dir)
 
+            # Split the dataset
+            data_len = len(dataset)
+            train_len = int(data_len * 0.8)
+            val_len = int(data_len * 0.1)
+            test_len = data_len - train_len - val_len  # Ensure all samples are used
+            self.train_dataset, self.val_dataset, self.test_dataset = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
+
+
+        if stage == 'test' and not self.test_dataset:
+            # Load the test dataset only if it hasn't been loaded yet
+            self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
+            
     def train_dataloader(self):
         """
         Get the DataLoader for the training dataset.
@@ -175,7 +187,7 @@ class ComplexUNetLightning(pl.LightningModule):
         Get the DataLoader for the validation dataset.
         """
         return DataLoader(self.val_dataset, batch_size=self.batch_size,
-                          shuffle=False, num_workers=self.num_workers,
+                          shuffle=True, num_workers=self.num_workers,
                           pin_memory=self.pin_memory, drop_last=True,
                           persistent_workers=self.persistent_workers)
 
@@ -315,7 +327,8 @@ class ComplexUNetLightning(pl.LightningModule):
             None
         """
         # Concatenate all targets and outputs
-        targets = torch.cat(self.targets, dim=0)
+        # print (f"targets shape: {self.targets[0:2]}")
+        targets = torch.cat(self.targets, dim=0)        
         outputs = torch.cat(self.outputs, dim=0)
 
         # Convert to Float32 before converting to numpy
@@ -354,9 +367,9 @@ class ComplexUNetLightning(pl.LightningModule):
             plt.close()
 
             # Add the new code here
-            main_folder = "validation_image"
+            main_folder = self.image_folder_name
+            print(main_folder)
             sub_folder = f"{main_folder}/epoch_{self.current_epoch}"
-            print (f"Processing epoch {self.current_epoch} for validation")
             self.process_epoch_end(self.num_images_to_plot, sub_folder)
 
     def on_test_epoch_end(self, num_images_to_plot=10):
