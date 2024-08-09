@@ -126,13 +126,13 @@ class RelativePositionalEmbedding(nn.Module):
         # Calculate positional embeddings for height dimension
         positions_height = torch.arange(height, device=device).unsqueeze(0)  # Ensure positions_height is on the same device
         self.embedding_height = self.embedding_height.to(device)  # Move embedding_height to the same device
-        S_height = self.embedding_height(positions_height)
+        S_height = self.embedding_height(positions_height) # generating the positional embeddings for the width dimension. 
         S_height = S_height.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, width, -1)
 
         # Calculate positional embeddings for width dimension
         positions_width = torch.arange(width, device=device).unsqueeze(0)  # Ensure positions_width is on the same device
         self.embedding_width = self.embedding_width.to(device)  # Move embedding_width to the same device
-        S_width = self.embedding_width(positions_width)
+        S_width = self.embedding_width(positions_width) # generating the positional embeddings for the width dimension.
         S_width = S_width.permute(0, 2, 1).unsqueeze(2).expand(batch_size, -1, height, -1)
         S_width = S_width.permute(0, 1, 3, 2)
 
@@ -227,6 +227,7 @@ class ComplexUNet(nn.Module):
                              dp_rate, batchnorm)
         self.final_conv = nn.Conv2d(filter_size, 1, kernel_size=3,
                                     padding=1, bias=bias)
+        nn.init.kaiming_normal_(self.final_conv.weight, mode='fan_out', nonlinearity='relu')
         self.actv = nn.ReLU()
 
     def forward(self,
@@ -270,11 +271,11 @@ class ComplexUNet(nn.Module):
         for i in range(0, len(self.decoder) - 2, 2):
             # Exclude the last upsample for now
             x = self.decoder[i](x)  # Convolution
-            x = self.decoder[i + 1](x)  # Upsampling
+            x_u = self.decoder[i + 1](x)  # Upsampling
             skip_connection = skips.pop()
             pos_emb = pos_embs.pop()  # Get the corresponding positional embedding
-            x = self.attention_blocks[i // 2](x + pos_emb, skip_connection + pos_emb)
-            x = torch.cat((x, skip_connection), dim=1)
+            x = self.attention_blocks[i // 2](x_u + pos_emb, skip_connection + pos_emb)
+            x = torch.cat((x, x_u), dim=1)
         # Last decoder block
         x = self.decoder[-2](x)  # Last Convolution
         x = self.decoder[-1](x)  # Last Upsampling
