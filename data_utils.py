@@ -13,6 +13,7 @@ import h5py
 from augment import Image_Augmentation
 import tensorflow as tf
 
+
 def normalize_data(data):
     """
     Normalize the input data by dividing each image by its maximum value.
@@ -45,6 +46,13 @@ def normalize_data(data):
     if was_singleton:
         normalized_data = normalized_data.squeeze(0)
     return normalized_data
+
+def min_max_normalize(tensor):
+    min_val = tensor.min().item()
+    max_val = tensor.max().item()
+    normalized_tensor = (tensor - min_val) / (max_val - min_val)
+    return normalized_tensor
+
 
 class ParseDataset(Dataset):
     """
@@ -103,7 +111,6 @@ class ParseDataset(Dataset):
         self.cumulative_lengths = np.cumsum(self.lengths)
         self.augmenter = Image_Augmentation()
 
-
     def _filter_valid_files(self, file_lists: List[Path]) -> List[Path]:
         valid_files = []
         for file in file_lists:
@@ -129,7 +136,8 @@ class ParseDataset(Dataset):
             data_meas = torch.from_numpy(file['dataMeas'][..., idx])
             data_probe = torch.from_numpy(file['dataProbe'][...])
             data_pots = torch.from_numpy(file['dataPots'][..., idx])
-
+            data_pots = min_max_normalize(data_pots)
+            
         cbed = data_meas.unsqueeze(0)
         probe = data_probe.unsqueeze(0)
         pot = data_pots.unsqueeze(0)

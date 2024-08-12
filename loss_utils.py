@@ -14,10 +14,11 @@ from pytorch_msssim import ssim
 import torch
 import torch.nn.functional as F
 
+
 def custom_ssim_loss(
     targets: torch.Tensor,
     outputs: torch.Tensor,
-    data_range: float = 255.0
+    data_range: float = 1.0
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     custom_ssim_loss: Calculate the SSIM and MSE between
@@ -43,7 +44,9 @@ def custom_ssim_loss(
     ssim_val = torch.clamp(ssim_val, min=1e-7)
     # Calculate losses
     loss_1 = 1 - ssim_val  # SSIM loss component
-    loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
+    #loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
+    loss_2 = F.l1_loss(targets, outputs)  # MSE loss component
+
     loss_2 = loss_2 + 1e-7
     total_loss = loss_1 + loss_2  # Combined loss
 
