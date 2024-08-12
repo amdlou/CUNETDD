@@ -105,7 +105,7 @@ def main(params: Namespace) -> None:
         profiler=PyTorchProfiler(dirpath='./', filename='profiler_report')
         if params.use_profiler else None,
         max_epochs=params.max_epochs,
-        accumulate_grad_batches=params.accumulate_grad_batches,
+        # accumulate_grad_batches=params.accumulate_grad_batches,
         accelerator='cpu' if params.gpus is None else 'gpu',
         devices= 1 if params.gpus is None else params.gpus,
         sync_batchnorm=False if params.gpus is None else params.sync_bnorm,
@@ -118,7 +118,7 @@ def main(params: Namespace) -> None:
         benchmark=params.benchmark,
         gradient_clip_val=params.gradient_clip_val,
         gradient_clip_algorithm=params.gradient_clip_algorithm,
-        deterministic=params.deterministic,
+        # deterministic=params.deterministic,
         enable_progress_bar=params.enable_progress_bar,
         limit_train_batches=params.limit_train_batches,
         #precision=params.precision,
