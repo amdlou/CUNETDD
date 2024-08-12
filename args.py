@@ -24,18 +24,18 @@ def get_args() -> Dict[str, Any]:
         'input_channel': 1,  # Set the number of input channels
         'image_size': 256,  # Set the size of the input images
         'batch_size': 32,  # Set the batch size
-        'filter_size': 8,  # Set the initial number of filters
-        'n_depth': 1,  # Set the depth of the network
-        'dp_rate': 0.1,  # Set the dropout rate
-        'learning_rate': 0.0001,  # Add the learning rate
+        'filter_size': 16,  # Set the initial number of filters
+        'n_depth': 3,  # Set the depth of the network
+        'dp_rate': 0.3,  # Set the dropout rate
+        'learning_rate': 0.001,  # Add the learning rate
         'activation': nn.ReLU,  # Note: Use the module directly
         'shuffle': True,  # Set to False to disable shuffling
         'drop_last': True,  # Set to False to keep the last batch
         'pin_memory': False,  # Set to True to use pinned memory
         'persistent_workers': True,  # Set to True to use persistent workers
         'plot_frequency': 50,  # Set the frequency of plotting
-        'num_images_to_plot': 4,  # Set the number of images to plot
-        'num_workers': 9,  # Set the number of workers for data loading
+        'num_images_to_plot': 40,  # Set the number of images to plot
+        'num_workers': 0,  # Set the number of workers for data loading
 
 
         # #### Trainer arguments#####
