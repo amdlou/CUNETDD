@@ -66,7 +66,7 @@ def get_args() -> Dict[str, Any]:
         'checkpoint_dir': './',  # Set the directory for saving checkpoints
         'train_dataset_dir': './train', #'/ourdisk/hpc/disc/amin/auto_archive_notyet/tape_2copies/4DSTEM_DATA/rotated_data',  # Add the directory for the training
         'test_dataset_dir': './test',  #Addthe directory for the test
-        'val_dataset_dir': './val', #  '/ourdisk/hpc/disc/amin/auto_archive_notyet/tape_2copies/val/rotate',  # Add the directory for the validation
+        # 'val_dataset_dir': './val', #  '/ourdisk/hpc/disc/amin/auto_archive_notyet/tape_2copies/val/rotate',  # Add the directory for the validation
         'checkpoint_pth': None, #'./FCUnet-epoch=798.ckpt',  # Set to the path of the checkpoint to laod or None
     }
     return args
