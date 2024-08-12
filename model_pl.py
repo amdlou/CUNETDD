@@ -68,7 +68,7 @@ class ComplexUNetLightning(pl.LightningModule):
     """
 
     def __init__(self, input_channel: int, image_size: int, filter_size: int,
-                 n_depth: int, val_dataset_dir, train_dataset_dir,
+                 n_depth: int, train_dataset_dir,
                  test_dataset_dir, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
@@ -95,7 +95,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.sample_counter = 0
         self.plot_frequency = plot_frequency
         self.num_images_to_plot = num_images_to_plot
-        self.val_dataset_dir = val_dataset_dir
+        # self.val_dataset_dir = val_dataset_dir
         self.train_dataset_dir = train_dataset_dir
         self.test_dataset_dir = test_dataset_dir
         self.train_dataset = None
@@ -146,11 +146,20 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Set up the datasets for training, validation, and testing.
         """
-        # Load the datasets from each respective folder
         if stage == 'fit' or stage is None:
-            self.train_dataset = ParseDataset(filepath=self.train_dataset_dir)
-            self.val_dataset = ParseDataset(filepath=self.val_dataset_dir)
-        if stage == 'test':
+            # Load the dataset once
+            dataset = ParseDataset(filepath=self.train_dataset_dir)
+
+            # Split the dataset
+            data_len = len(dataset)
+            train_len = int(data_len * 0.8)
+            val_len = int(data_len * 0.1)
+            test_len = data_len - train_len - val_len  # Ensure all samples are used
+            self.train_dataset, self.val_dataset, self.test_dataset = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
+
+
+        if stage == 'test' and not self.test_dataset:
+            # Load the test dataset only if it hasn't been loaded yet
             self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
 
     def train_dataloader(self):
