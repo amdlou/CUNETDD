@@ -147,14 +147,14 @@ class ParseDataset(Dataset):
             data_probe = torch.from_numpy(file['dataProbe'][...])
             data_pots = torch.from_numpy(file['dataPots'][..., idx])
             data_pots = min_max_normalize(data_pots)
-            
+
         cbed = data_meas.unsqueeze(0)
         probe = data_probe.unsqueeze(0)
         pot = data_pots.unsqueeze(0)
         batch_size = 32
         # Expand dimensions
-        cbed1 = cbed.unsqueeze(-1)  #  `cbed1` has shape (1, 256, 256, 1)
-        probe1 = probe.unsqueeze(-1)  #  `probe1` has shape (1, 256, 256, 1)
+        cbed1 = cbed.unsqueeze(-1)  # `cbed1` has shape (1, 256, 256, 1)
+        probe1 = probe.unsqueeze(-1)  # `probe1` has shape (1, 256, 256, 1)
 
         # Replicate along the batch dimension
         cbed1 = cbed1.repeat(batch_size, 1, 1, 1)  # `cbed1` has shape (batch_size, 256, 256, 1)
@@ -167,5 +167,3 @@ class ParseDataset(Dataset):
     def __len__(self) -> int:
         """Returns the length of the dataset."""
         return self.cumulative_lengths[-1]
-
-
