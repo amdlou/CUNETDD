@@ -11,7 +11,6 @@ import torch
 from torch.utils.data import Dataset
 import h5py
 from augment import Image_Augmentation
-import tensorflow as tf
 
 
 def normalize_data(data):
@@ -47,7 +46,18 @@ def normalize_data(data):
         normalized_data = normalized_data.squeeze(0)
     return normalized_data
 
+
 def min_max_normalize(tensor):
+    """
+    Normalize a tensor using min-max normalization.
+
+    Args:
+        tensor (torch.Tensor): The input tensor to be normalized.
+
+    Returns:
+        torch.Tensor: The normalized tensor.
+
+    """
     min_val = tensor.min().item()
     max_val = tensor.max().item()
     normalized_tensor = (tensor - min_val) / (max_val - min_val)
@@ -143,12 +153,12 @@ class ParseDataset(Dataset):
         pot = data_pots.unsqueeze(0)
         batch_size = 32
         # Expand dimensions
-        cbed1 = tf.expand_dims(cbed, axis=-1)  # Now `cbed1` has shape (1, 256, 256, 1)
-        probe1 = tf.expand_dims(probe, axis=-1)  # Now `probe1` has shape (1, 256, 256, 1)
+        cbed1 = cbed.unsqueeze(-1)  #  `cbed1` has shape (1, 256, 256, 1)
+        probe1 = probe.unsqueeze(-1)  #  `probe1` has shape (1, 256, 256, 1)
 
         # Replicate along the batch dimension
-        cbed1 = tf.tile(cbed1, [batch_size, 1, 1, 1])  # Now `cbed1` has shape (batch_size, 256, 256, 1)
-        probe1 = tf.tile(probe1, [batch_size, 1, 1, 1])  # Now `probe1` has shape (batch_size, 256, 256, 1)
+        cbed1 = cbed1.repeat(batch_size, 1, 1, 1)  # `cbed1` has shape (batch_size, 256, 256, 1)
+        probe1 = probe1.repeat(batch_size, 1, 1, 1)  # `probe1` has shape (batch_size, 256, 256, 1)
 
         cbed = self.augmenter.augment_img(cbed1, probe1)
         return (self._replace_nan(cbed), self._replace_nan(probe),
