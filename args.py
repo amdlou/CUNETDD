@@ -60,10 +60,10 @@ def get_args() -> Dict[str, Any]:
 
 
         # #### Directory arguments####
-        
+
         'image_folder_name': 'validation_image1',  # Set the name of the main folder
         'checkpoint_dir': './',  # Set the directory for saving checkpoints
-        'train_dataset_dir': './train',  #'/ourdisk/hpc/disc/amin/auto_archive_notyet/tape_2copies/4DSTEM_DATA/rotated_data',  # Add the directory for the training
-        'checkpoint_pth': None,  #'./FCUnet-epoch=798.ckpt',  # Set to the path of the checkpoint to laod or None
+        'train_dataset_dir': './train',  # '/ourdisk/hpc/disc/amin/auto_archive_notyet/tape_2copies/4DSTEM_DATA/rotated_data',  # Add the directory for the training
+        'checkpoint_pth': None,  # './FCUnet-epoch=798.ckpt',  # Set to the path of the checkpoint to laod or None
     }
     return args
