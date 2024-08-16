@@ -53,9 +53,7 @@ class ComplexUNetLightning(pl.LightningModule):
         filter_size (int): Size of the filters in the model.
         n_depth (int): Number of downsampling and upsampling blocks
           in the model.
-        val_dataset_dir (str): Directory path of the validation dataset.
         train_dataset_dir (str): Directory path of the training dataset.
-        test_dataset_dir (str): Directory path of the test dataset.
         dp_rate (float, optional): Dropout rate. Defaults to 0.3.
         activation (Optional[Type[nn.Module]], optional): Activation function.
         Defaults to nn.ReLU.
@@ -166,11 +164,10 @@ class ComplexUNetLightning(pl.LightningModule):
             test_len = data_len - train_len - val_len  # Ensure all samples are used
             self.train_dataset, self.val_dataset, self.test_dataset = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
 
-
         if stage == 'test' and not self.test_dataset:
-            # Load the test dataset only if it hasn't been loaded yet
-            self.test_dataset = ParseDataset(filepath=self.test_dataset_dir)
-            
+            # Define the test dataset as a portion of the original dataset
+            self.test_dataset = self.train_dataset[:test_len]
+                
     def train_dataloader(self):
         """
         Get the DataLoader for the training dataset.
@@ -179,6 +176,7 @@ class ComplexUNetLightning(pl.LightningModule):
                           shuffle=self.shuffle, num_workers=self.num_workers,
                           pin_memory=self.pin_memory, drop_last=True,
                           persistent_workers=self.persistent_workers)
+        
 
     def val_dataloader(self):
         """
@@ -210,7 +208,6 @@ class ComplexUNetLightning(pl.LightningModule):
             Dict[str, torch.Tensor]: A dictionary containing the loss value.
         """
         inputs_cb, inputs_pr, targets = batch
-        #print(targets.max().item()), print(targets.min().item()),
         outputs = self(inputs_cb, inputs_pr)
         total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
         targets = targets.detach().cpu().to(torch.float32).numpy()
