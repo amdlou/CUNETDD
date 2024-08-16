@@ -26,6 +26,7 @@ from py4dstem_utils import acc
 # Define MAX_SAMPLES
 MAX_SAMPLES = 1000
 
+
 def normalize_image(image: np.ndarray) -> np.ndarray:
     """
     Normalize the given image by dividing it by the maximum pixel value.
@@ -67,8 +68,7 @@ class ComplexUNetLightning(pl.LightningModule):
     """
 
     def __init__(self, input_channel: int, image_size: int, filter_size: int,
-                 n_depth: int, val_dataset_dir, train_dataset_dir,
-                 test_dataset_dir, dp_rate: float = 0.3,
+                 n_depth: int, train_dataset_dir, dp_rate: float = 0.3,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batch_size: int = 256, learning_rate: float = 0.001,
                  plot_frequency: int = 10, num_images_to_plot: int = 10,
@@ -98,9 +98,7 @@ class ComplexUNetLightning(pl.LightningModule):
         self.outputs: List[torch.Tensor] = []
         self.sample_counter = 0
         self.plot_frequency = plot_frequency
-        self.val_dataset_dir = val_dataset_dir
         self.train_dataset_dir = train_dataset_dir
-        self.test_dataset_dir = test_dataset_dir
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
@@ -212,12 +210,13 @@ class ComplexUNetLightning(pl.LightningModule):
             Dict[str, torch.Tensor]: A dictionary containing the loss value.
         """
         inputs_cb, inputs_pr, targets = batch
+        #print(targets.max().item()), print(targets.min().item()),
         outputs = self(inputs_cb, inputs_pr)
         total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
         targets = targets.detach().cpu().to(torch.float32).numpy()
         outputs = outputs.detach().cpu().to(torch.float32).numpy()
         accuracy = self.acc.score(targets, outputs)
-        self.log('accuracy', float(accuracy), sync_dist=True)
+        self.log('accuracy', float(accuracy), on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss_1', loss_1, on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss_2', loss_2, on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss', total_loss, on_step=True, on_epoch=True, sync_dist=True)
@@ -255,10 +254,10 @@ class ComplexUNetLightning(pl.LightningModule):
             targets = targets.detach().cpu().to(torch.float32).numpy()
             outputs = outputs.detach().cpu().to(torch.float32).numpy()
             accuracy = self.acc.score(targets, outputs)
+            self.log('accuracy', float(accuracy), on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('accuracy', float(accuracy), sync_dist=True)
             # Append the validation loss to the history
             self.validation_loss_history.append(total_loss.item())
             return {'val_loss': total_loss}
@@ -367,7 +366,8 @@ class ComplexUNetLightning(pl.LightningModule):
             plt.close()
 
             # Add the new code here
-            main_folder = self.image_folder_name
+            main_folder = self.
+            
             print(main_folder)
             sub_folder = f"{main_folder}/epoch_{self.current_epoch}"
             self.process_epoch_end(self.num_images_to_plot, sub_folder)

@@ -101,7 +101,8 @@ class ParseDataset(Dataset):
     """
 
     def __init__(self, filepath: str = '', image_size: Union[int,
-                 List[int]] = 256, out_channel: int = 1):
+                 List[int]] = 256, out_channel: int = 1,
+                 batch_size: int = 32):
 
         assert isinstance(image_size, (int, list)), 'image_size must be integer (when height=width) or list (height, width)'
         self.filepath: Path = Path(filepath)
@@ -117,6 +118,7 @@ class ParseDataset(Dataset):
         else:
             self.height, self.width = image_size
         self.out_channel = out_channel
+        self.batch_size = batch_size
         self.lengths = [25 for _ in self.file_lists]
         self.cumulative_lengths = np.cumsum(self.lengths)
         self.augmenter = Image_Augmentation()
@@ -151,14 +153,13 @@ class ParseDataset(Dataset):
         cbed = data_meas.unsqueeze(0)
         probe = data_probe.unsqueeze(0)
         pot = data_pots.unsqueeze(0)
-        batch_size = 32
         # Expand dimensions
         cbed1 = cbed.unsqueeze(-1)  # `cbed1` has shape (1, 256, 256, 1)
         probe1 = probe.unsqueeze(-1)  # `probe1` has shape (1, 256, 256, 1)
 
         # Replicate along the batch dimension
-        cbed1 = cbed1.repeat(batch_size, 1, 1, 1)  # `cbed1` has shape (batch_size, 256, 256, 1)
-        probe1 = probe1.repeat(batch_size, 1, 1, 1)  # `probe1` has shape (batch_size, 256, 256, 1)
+        cbed1 = cbed1.repeat(self.batch_size, 1, 1, 1)  # `cbed1` has shape (batch_size, 256, 256, 1)
+        probe1 = probe1.repeat(self.batch_size, 1, 1, 1)  # `probe1` has shape (batch_size, 256, 256, 1)
 
         cbed = self.augmenter.augment_img(cbed1, probe1)
         return (self._replace_nan(cbed), self._replace_nan(probe),
