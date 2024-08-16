@@ -366,9 +366,7 @@ class ComplexUNetLightning(pl.LightningModule):
             plt.close()
 
             # Add the new code here
-            main_folder = self.
-            
-            print(main_folder)
+            main_folder = self.image_folder_name
             sub_folder = f"{main_folder}/epoch_{self.current_epoch}"
             self.process_epoch_end(self.num_images_to_plot, sub_folder)
 
