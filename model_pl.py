@@ -171,13 +171,12 @@ class ComplexUNetLightning(pl.LightningModule):
                           pin_memory=self.pin_memory, drop_last=True,
                           persistent_workers=self.persistent_workers)
         
-
     def val_dataloader(self):
         """
         Get the DataLoader for the validation dataset.
         """
         return DataLoader(self.val_dataset, batch_size=self.batch_size,
-                          shuffle=True, num_workers=self.num_workers,
+                          shuffle=False, num_workers=self.num_workers,
                           pin_memory=self.pin_memory, drop_last=True,
                           persistent_workers=self.persistent_workers)
 
