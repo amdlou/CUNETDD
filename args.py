@@ -19,7 +19,6 @@ def get_args() -> Dict[str, Any]:
 
         # #### Model arguments #####
 
-
         'input_channel': 1,  # Set the number of input channels
         'image_size': 256,  # Set the size of the input images
         'batch_size': 32,  # Set the batch size
@@ -44,7 +43,7 @@ def get_args() -> Dict[str, Any]:
         'num_nodes': 1,  # Set the number of nodes
         'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
         'max_epochs': 10,  # Set the maximum number of epochs
-        'accumulate_grad_batches': 16 ,  # Set the number of batches to accumulate
+        'accumulate_grad_batches': 16,  # Set the number of batches to accumulate
         'limit_train_batches' : 1,  # Set the fraction of training data to us
         'track_grad_norm': -1,  # Set the norm to track
         'gradient_clip_val': 0.5,  # Set the value for gradient clipping
@@ -61,6 +60,7 @@ def get_args() -> Dict[str, Any]:
 
 
         # #### Directory arguments####
+        
         'image_folder_name': 'validation_image1',  # Set the name of the main folder
         'checkpoint_dir': './',  # Set the directory for saving checkpoints
         'train_dataset_dir': './train',  #'/ourdisk/hpc/disc/amin/auto_archive_notyet/tape_2copies/4DSTEM_DATA/rotated_data',  # Add the directory for the training
