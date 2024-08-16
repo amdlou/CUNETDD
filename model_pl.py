@@ -153,10 +153,8 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Set up the datasets for training, validation, and testing.
         """
-       # if stage == 'fit' or stage is None:
-            # Load the dataset once
+        # Load the dataset once
         dataset = ParseDataset(filepath=self.train_dataset_dir)
-
         # Split the dataset
         data_len = len(dataset)
         train_len = int(data_len * 0.8)
