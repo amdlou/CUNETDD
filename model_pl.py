@@ -153,21 +153,17 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         Set up the datasets for training, validation, and testing.
         """
-        if stage == 'fit' or stage is None:
+       # if stage == 'fit' or stage is None:
             # Load the dataset once
-            dataset = ParseDataset(filepath=self.train_dataset_dir)
+        dataset = ParseDataset(filepath=self.train_dataset_dir)
 
-            # Split the dataset
-            data_len = len(dataset)
-            train_len = int(data_len * 0.8)
-            val_len = int(data_len * 0.1)
-            test_len = data_len - train_len - val_len  # Ensure all samples are used
-            self.train_dataset, self.val_dataset, self.test_dataset = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
-
-        if stage == 'test' and not self.test_dataset:
-            # Define the test dataset as a portion of the original dataset
-            self.test_dataset = self.train_dataset[:test_len]
-                
+        # Split the dataset
+        data_len = len(dataset)
+        train_len = int(data_len * 0.8)
+        val_len = int(data_len * 0.1)
+        test_len = data_len - train_len - val_len  # Ensure all samples are used
+        self.train_dataset, self.val_dataset, self.test_dataset = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
+            
     def train_dataloader(self):
         """
         Get the DataLoader for the training dataset.
