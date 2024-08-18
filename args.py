@@ -44,7 +44,7 @@ def get_args() -> Dict[str, Any]:
         'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
         'max_epochs': 10,  # Set the maximum number of epochs
         'accumulate_grad_batches': 16,  # Set the number of batches to accumulate
-        'limit_train_batches' : 1,  # Set the fraction of training data to us
+        'limit_train_batches' : 1.0,  # Set the fraction of training data to us
         'track_grad_norm': -1,  # Set the norm to track
         'gradient_clip_val': 0.5,  # Set the value for gradient clipping
         'fast_dev_run': False,  # Set to True for a quick test run
