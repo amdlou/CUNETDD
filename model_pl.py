@@ -115,9 +115,6 @@ class ComplexUNetLightning(pl.LightningModule):
         Returns:
             torch.Tensor: The output of the complex UNet model.
         """
-        device = next(self.complex_unet.parameters()).device
-        inputs_cb = inputs_cb.to(device)
-        inputs_pr = inputs_pr.to(device)
         return self.complex_unet(inputs_cb, inputs_pr)
 
     def collect_samples(self, targets: torch.Tensor,
@@ -137,17 +134,9 @@ class ComplexUNetLightning(pl.LightningModule):
             None
         """
         with torch.no_grad():
-            samples_to_collect = min(targets.size(0),
-                                     max_samples - self.sample_counter)
-            if samples_to_collect > 0:
-                # Generate a list of random indices
-                indices = torch.randperm(targets.size(0))[:samples_to_collect]
-
-                # Index into the tensors with the random indices
-                self.targets.append(targets[indices])
-                self.outputs.append(outputs[indices])
-
-                self.sample_counter += samples_to_collect
+            sampler = torch.randperm(targets.size(0))[:max_samples]
+            self.targets.append(targets[sampler])
+            self.outputs.append(outputs[sampler])
 
     def setup(self, stage=None):
         """
@@ -161,34 +150,31 @@ class ComplexUNetLightning(pl.LightningModule):
         val_len = int(data_len * 0.1)
         test_len = data_len - train_len - val_len  # Ensure all samples are used
         self.train_dataset, self.val_dataset, self.test_dataset = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
-            
+
+    def get_dataloader(self, dataset, shuffle):
+        """
+        Get the DataLoader for a given dataset.
+        """
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=self.num_workers, pin_memory=self.pin_memory, drop_last=True, persistent_workers=self.persistent_workers)
+
     def train_dataloader(self):
         """
         Get the DataLoader for the training dataset.
         """
-        return DataLoader(self.train_dataset, batch_size=self.batch_size,
-                          shuffle=self.shuffle, num_workers=self.num_workers,
-                          pin_memory=self.pin_memory, drop_last=True,
-                          persistent_workers=self.persistent_workers)
-        
+        return self.get_dataloader(self.train_dataset, shuffle=True)
+
     def val_dataloader(self):
         """
         Get the DataLoader for the validation dataset.
         """
-        return DataLoader(self.val_dataset, batch_size=self.batch_size,
-                          shuffle=False, num_workers=self.num_workers,
-                          pin_memory=self.pin_memory, drop_last=True,
-                          persistent_workers=self.persistent_workers)
+        return self.get_dataloader(self.val_dataset, shuffle=False)
 
     def test_dataloader(self):
         """
-        Get the DataLoader for the test dataset .
+        Get the DataLoader for the test dataset.
         """
-        return DataLoader(self.test_dataset, batch_size=self.batch_size,
-                          shuffle=False, num_workers=self.num_workers,
-                          pin_memory=self.pin_memory, drop_last=True,
-                          persistent_workers=self.persistent_workers)
-
+        return self.get_dataloader(self.test_dataset, shuffle=False)
+    
     def training_step(self, batch):
         """
         Perform a single training step.
@@ -210,7 +196,6 @@ class ComplexUNetLightning(pl.LightningModule):
         self.log('Train_loss_1', loss_1, on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss_2', loss_2, on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss', total_loss, on_step=True, on_epoch=True, sync_dist=True)
-
         return {'loss': total_loss}
 
     def on_validation_epoch_start(self):
@@ -282,25 +267,10 @@ class ComplexUNetLightning(pl.LightningModule):
     def on_train_epoch_end(self):
         avg_loss = self.trainer.callback_metrics['Train_loss']
         if isinstance(avg_loss, torch.Tensor):
-            avg_loss = avg_loss.cpu().numpy()
+            avg_loss = avg_loss.cpu().item()
 
         self.loss.append(avg_loss)
         self.epochs.append(self.current_epoch)
-
-    # Check if the current epoch is a multiple of 10
-        if self.current_epoch % self.plot_frequency == 0:
-            plt.figure()  # Create a new figure
-            plt.plot(self.epochs, self.loss, 'ro-')
-            plt.title(f"Training Loss at Epoch {self.current_epoch}")
-            plt.xlabel('Epoch')
-            plt.ylabel('Loss')
-
-            # Ensure the directory for saving the plots exists
-            save_dir = "loss_plot"
-            os.makedirs(save_dir, exist_ok=True)
-            plt.savefig(os.path.join(save_dir,
-                        f"training_loss_{self.current_epoch}.png"))
-            plt.close()
 
     def process_epoch_end(self, num_images_to_plot: int,
                           save_dir: str) -> None:
@@ -316,7 +286,6 @@ class ComplexUNetLightning(pl.LightningModule):
             None
         """
         # Concatenate all targets and outputs
-        # print (f"targets shape: {self.targets[0:2]}")
         targets = torch.cat(self.targets, dim=0)        
         outputs = torch.cat(self.outputs, dim=0)
 
@@ -334,34 +303,21 @@ class ComplexUNetLightning(pl.LightningModule):
         self.outputs = []
 
     def on_validation_epoch_end(self):
-        avg_loss = self.trainer.callback_metrics['val_loss']
-        if isinstance(avg_loss, torch.Tensor):
-            avg_loss = avg_loss.cpu().numpy()
+        with torch.no_grad():
+            avg_loss = self.trainer.callback_metrics['val_loss']
+            if isinstance(avg_loss, torch.Tensor):
+                avg_loss = avg_loss.cpu().numpy()
 
-        self.val_loss.append(avg_loss)
-        self.val_epochs.append(self.current_epoch)
+            self.val_loss.append(avg_loss)
+            self.val_epochs.append(self.current_epoch)
 
-        # Check if the current epoch is a multiple of 10
-        if self.current_epoch % self.plot_frequency == 0:
-            plt.figure()  # Create a new figure
-            plt.plot(self.val_epochs, self.val_loss, 'bo-')
-            plt.title(f"Validation Loss at Epoch {self.current_epoch}")
-            plt.xlabel('Epoch')
-            plt.ylabel('Loss')
-
-            # Ensure the directory for saving the plots exists
-            save_dir = "loss_plot"
-            os.makedirs(save_dir, exist_ok=True)
-            plt.savefig(os.path.join(save_dir, f"validation_loss_{self.current_epoch}.png"))
-            plt.close()
-
-            # Add the new code here
             main_folder = self.image_folder_name
             sub_folder = f"{main_folder}/epoch_{self.current_epoch}"
             self.process_epoch_end(self.num_images_to_plot, sub_folder)
 
     def on_test_epoch_end(self, num_images_to_plot=10):
-        self.process_epoch_end(num_images_to_plot, "test_image")
+        with torch.no_grad():
+            self.process_epoch_end(num_images_to_plot, "test_image")
 
     def save_images(self, targets_np: np.ndarray, outputs_np: np.ndarray,
                     num_images_to_plot: int, save_dir: str) -> None:
@@ -379,44 +335,35 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         # Determine how many images to save
         num_images_to_plot = min(num_images_to_plot, len(targets_np))
-
-        # Randomly select indices to save
         indices_to_save = np.random.choice(len(targets_np),
                                            num_images_to_plot, replace=False)
-
-        # Ensure the directory for saving the images exists
         os.makedirs(save_dir, exist_ok=True)
 
-        # Loop through the selected indices and save each image
         for i in indices_to_save:
-            # Normalize the target and output images before saving
             target_img = normalize_image(targets_np[i][0])
             output_img = normalize_image(outputs_np[i][0])
 
-            # Save the target and output images
-            # directly without scaling them to 255
             plt.imsave(os.path.join(save_dir, f"target_{i}.png"), target_img,
                        cmap='gray', format='png')
             plt.imsave(os.path.join(save_dir, f"output_{i}.png"), output_img,
                        cmap='gray', format='png')
 
-        # Plot the first N images
-        fig, axes = plt.subplots(num_images_to_plot, 2,
-                                 figsize=(10, num_images_to_plot * 2))
-        for j in range(num_images_to_plot):
-            index = indices_to_save[j]
-            axes[j, 0].imshow(normalize_image(targets_np[index][0]),
-                              cmap='gray')
+        self.plot_images(targets_np, outputs_np, indices_to_save, save_dir)
+
+    def plot_images(self, targets_np: np.ndarray, outputs_np: np.ndarray,
+                    indices_to_save: np.ndarray, save_dir: str) -> None:
+        fig, axes = plt.subplots(len(indices_to_save), 2,
+                                 figsize=(10, len(indices_to_save) * 2))
+        for j, index in enumerate(indices_to_save):
+            axes[j, 0].imshow(targets_np[index][0], cmap='gray')
             axes[j, 0].set_title('Ground Truth')
             axes[j, 0].axis('off')
 
-            axes[j, 1].imshow(normalize_image(outputs_np[index][0]),
-                              cmap='gray')
+            axes[j, 1].imshow(outputs_np[index][0], cmap='gray')
             axes[j, 1].set_title('Prediction')
             axes[j, 1].axis('off')
 
         plt.tight_layout()
-        # Optionally, save the figure to a file
         fig.savefig(os.path.join(save_dir,
-                                 f'gt_vs_pred_{num_images_to_plot}.png'))
+                                 f'gt_vs_pred_{len(indices_to_save)}.png'))
         plt.close(fig)
