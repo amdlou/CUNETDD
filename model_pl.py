@@ -340,12 +340,13 @@ class ComplexUNetLightning(pl.LightningModule):
         os.makedirs(save_dir, exist_ok=True)
 
         for i in indices_to_save:
-            target_img = normalize_image(targets_np[i][0])
-            output_img = normalize_image(outputs_np[i][0])
+            # Normalize the images once before saving and plotting
+            targets_np[i][0] = normalize_image(targets_np[i][0])
+            outputs_np[i][0] = normalize_image(outputs_np[i][0])
 
-            plt.imsave(os.path.join(save_dir, f"target_{i}.png"), target_img,
+            plt.imsave(os.path.join(save_dir, f"target_{i}.png"), targets_np[i][0],
                        cmap='gray', format='png')
-            plt.imsave(os.path.join(save_dir, f"output_{i}.png"), output_img,
+            plt.imsave(os.path.join(save_dir, f"output_{i}.png"), outputs_np[i][0],
                        cmap='gray', format='png')
 
         self.plot_images(targets_np, outputs_np, indices_to_save, save_dir)
