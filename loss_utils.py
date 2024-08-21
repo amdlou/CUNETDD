@@ -14,40 +14,65 @@ from pytorch_msssim import ssim
 import torch
 import torch.nn.functional as F
 
-
 def custom_ssim_loss(
     targets: torch.Tensor,
     outputs: torch.Tensor,
     data_range: float = 1.0
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    custom_ssim_loss: Calculate the SSIM and MSE between
-    the target and output images.
-    
-    Parameters:
-    - targets: The target tensor.
-    - outputs: The output tensor.
-    - data_range: The range of the data, default is 255.0 for images in the 0-255 range.
 
-    Returns:
-    - A tuple containing the total loss, SSIM loss, and MSE loss.
-    """
-    # Assert that both targets and outputs are tensors
     assert isinstance(targets, torch.Tensor), "Expected 'targets' to be a PyTorch Tensor"
     assert isinstance(outputs, torch.Tensor), "Expected 'outputs' to be a PyTorch Tensor"
-
-    # Assert that targets and outputs have the same dimensions
     assert targets.shape == outputs.shape, "Targets and outputs must have the same dimensions"
 
-    # Calculate SSIM
-    ssim_val = ssim(targets, outputs, data_range=data_range)
-    ssim_val = torch.clamp(ssim_val, min=1e-7)
-    # Calculate losses
-    loss_1 = 1 - ssim_val  # SSIM loss component
-    #loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
-    loss_2 = F.l1_loss(targets, outputs)  # MSE loss component
+    # Convert tensors to float32
+    targets = targets.float()
+    outputs = outputs.float()
 
-    loss_2 = loss_2 + 1e-7
-    total_loss = loss_1 + loss_2  # Combined loss
+    # Define thresholds and weights
+    
+    thresh1 = 100.0
+    thresh2 = 500.0
+    weight1 = 0.6
+    weight2 = 0.3
+    weight3 = 0.1
+    
+    mask1 = targets < thresh1
+    mask1.requires_grad = False
 
-    return total_loss, loss_1, loss_2
+    mask2 = (targets >= thresh1) & (targets < thresh2)
+    mask2.requires_grad = False
+
+    mask3 = targets >= thresh2
+    mask3.requires_grad = False
+
+    masked_targets1 = torch.where(mask1, targets, torch.zeros_like(targets))
+    masked_outputs1 = torch.where(mask1, outputs, torch.zeros_like(outputs))
+
+    masked_targets2 = torch.where(mask2, targets, torch.zeros_like(targets))
+    masked_outputs2 = torch.where(mask2, outputs, torch.zeros_like(outputs))
+
+    masked_targets3 = torch.where(mask3, targets, torch.zeros_like(targets))
+    masked_outputs3 = torch.where(mask3, outputs, torch.zeros_like(outputs))
+
+    def calculate_losses(masked_targets, masked_outputs):
+        if masked_targets.numel() > 0:
+            ssim_loss = 1 - ssim(masked_targets, masked_outputs, data_range=data_range)
+            #kl_div_loss = F.kl_div(F.log_softmax(masked_outputs, dim=1), F.softmax(masked_targets, dim=1))
+            mse_loss = F.mse_loss(masked_targets, masked_outputs)
+        else:
+            ssim_loss = torch.tensor(0.0)
+            #kl_div_loss = torch.tensor(0.0)
+            mse_loss = torch.tensor(0.0)
+        return ssim_loss, mse_loss
+
+    ssim_loss1, mse_loss1 = calculate_losses(masked_targets1, masked_outputs1)
+    ssim_loss2, mse_loss2 = calculate_losses(masked_targets2, masked_outputs2)
+    ssim_loss3, mse_loss3 = calculate_losses(masked_targets3, masked_outputs3)
+
+    total_loss1 = ssim_loss1 + mse_loss1
+    total_loss2 = ssim_loss2 + mse_loss2
+    total_loss3 = ssim_loss3 + mse_loss3
+
+    total_loss = weight1 * total_loss1 + weight2 * total_loss2 + weight3 * total_loss3
+
+    return total_loss, ssim_loss1 + ssim_loss2 + ssim_loss3, mse_loss1 + mse_loss2 + mse_loss3
