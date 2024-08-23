@@ -12,39 +12,80 @@ from torch.utils.data import Dataset
 import h5py
 from augment import Image_Augmentation
 
-
-def normalize_data(data):
+def filter_hot_pixels_pytorch(datacube: torch.Tensor, thresh: float, ind_compare: int = 1, return_mask: bool = False):
     """
-    Normalize the input data by dividing each image by its maximum value.
+    Perform pixel filtering to remove hot or bright pixels using PyTorch.
+    Parameters
+    ----------
+    datacube : torch.Tensor
+        The 4D datacube with shape (n, c, h, w)
+    thresh : float
+        Threshold for replacing hot pixels, if pixel value minus local ordering
+        filter exceeds it.
+    ind_compare : int
+        Which ordered pixel value to compare against. 0 = brightest pixel,
+        1 = next brightest, etc.
+    return_mask : bool
+        If True, returns the filter mask
 
-    Args:
-        data (torch.Tensor): Input data tensor of shape [B, C, H, W],
-                             where B is the batch size,
-                             C is the number of channels, H is the height,
-                             and W is the width.
-
-    Returns:
-        torch.Tensor: Normalized data tensor of the same shape
-                                             as the input data.
-
+    Returns
+    -------
+    datacube : torch.Tensor
+    mask : torch.Tensor (optional)
+        The bad pixel mask
     """
-    # Check if there's a batch dimension, and add one if there isn't
-    was_singleton = False
-    if len(data.shape) == 3:  # Shape is [1, H, W]
-        data = data.unsqueeze(0)  # Add a batch dimension [1, 1, H, W]
-        was_singleton = True
 
-    # Find the maximum value for each image in the batch
-    max_vals = data.view(data.size(0), -1).max(dim=1)[0].view(-1, 1, 1, 1)
-    # Avoid division by zero for images with all pixels equal to zero
-    max_vals[max_vals == 0] = 1
-    # Normalize each image individually
-    normalized_data = data / max_vals
+    # Mean image over all probe positions
+    diff_mean = torch.mean(datacube, dim=(0, 1))
+    if len(diff_mean.shape) == 1:
+        diff_mean = diff_mean.unsqueeze(0)
+    shape = diff_mean.shape
 
-    # Remove the batch dimension if it was added
-    if was_singleton:
-        normalized_data = normalized_data.squeeze(0)
-    return normalized_data
+    # Moving local ordered pixel values
+    shifts = [
+        (-1, -1), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0),
+        (-1, 1), (0, 1), (1, 1), (-1, -2), (0, -2), (1, -2),
+        (-1, 2), (0, 2), (1, 2), (-2, -1), (-2, 0), (-2, 1),
+        (2, -1), (2, 0), (2, 1)
+    ]
+    
+    diff_local_med = torch.stack([
+        torch.roll(diff_mean, shifts=shift, dims=(0, 1)).flatten() if len(shift) > 1 else torch.roll(diff_mean, shifts=shift, dims=0).flatten()
+        for shift in shifts
+    ], dim=0).sort(dim=0).values
+    
+    # Get the ind_compare'th pixel intensity
+    diff_compare = diff_local_med[-ind_compare - 1, :].view(shape)
+
+    # Generate mask
+    mask = (diff_mean - diff_compare) > thresh
+
+    # If the mask is empty, return
+    if mask.sum().item() == 0:
+        print("No hot pixels detected")
+        return (datacube, mask) if return_mask else datacube
+
+    # Otherwise, apply filtering
+
+    # Get masked indices
+    x_ma, y_ma = mask.nonzero(as_tuple=True)
+
+    # Get local windows for each masked pixel
+    xslices, yslices = [], []
+    for xm, ym in zip(x_ma, y_ma):
+        xslice = slice(max(xm - 1, 0), min(xm + 2, shape[0]))
+        yslice = slice(max(ym - 1, 0), min(ym + 2, shape[1]))
+        xslices.append(xslice)
+        yslices.append(yslice)
+
+    # Loop and replace pixels
+    for ax in range(datacube.shape[0]):
+        for ay in range(datacube.shape[1]):
+            for xm, ym, xs, ys in zip(x_ma, y_ma, xslices, yslices):
+                datacube[ax, ay, xm, ym] = torch.median(datacube[ax, ay, xs, ys])
+
+    # Return
+    return (datacube, mask) if return_mask else datacube
 
 
 def min_max_normalize(tensor):
@@ -148,20 +189,15 @@ class ParseDataset(Dataset):
             data_meas = torch.from_numpy(file['dataMeas'][..., idx])
             data_probe = torch.from_numpy(file['dataProbe'][...])
             data_pots = torch.from_numpy(file['dataPots'][..., idx])
-            data_pots = min_max_normalize(data_pots)
+            #data_pots = torch.log(data_pots + 1e-6)
+            #data_pots = filter_hot_pixels_pytorch(data_pots.unsqueeze(0), thresh=0.5, ind_compare=1).squeeze(0)
 
         cbed = data_meas.unsqueeze(0)
         probe = data_probe.unsqueeze(0)
         pot = data_pots.unsqueeze(0)
-        # Expand dimensions
-        cbed1 = cbed.unsqueeze(-1)  # `cbed1` has shape (1, 256, 256, 1)
-        probe1 = probe.unsqueeze(-1)  # `probe1` has shape (1, 256, 256, 1)
 
-        # Replicate along the batch dimension
-        cbed1 = cbed1.repeat(self.batch_size, 1, 1, 1)  # `cbed1` has shape (batch_size, 256, 256, 1)
-        probe1 = probe1.repeat(self.batch_size, 1, 1, 1)  # `probe1` has shape (batch_size, 256, 256, 1)
-
-        cbed = self.augmenter.augment_img(cbed1, probe1)
+        cbed = self.augmenter.augment_img(cbed, probe)
+        
         return (self._replace_nan(cbed), self._replace_nan(probe),
                 self._replace_nan(pot))
 
