@@ -192,7 +192,7 @@ class ComplexUNetLightning(pl.LightningModule):
         targets = targets.detach().cpu().to(torch.float32).numpy()
         outputs = outputs.detach().cpu().to(torch.float32).numpy()
         accuracy = self.acc.score(targets, outputs)
-        self.log('accuracy', float(accuracy), on_step=True, on_epoch=True, sync_dist=True)
+        self.log('train_accuracy', float(accuracy), on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss_1', loss_1, on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss_2', loss_2, on_step=True, on_epoch=True, sync_dist=True)
         self.log('Train_loss', total_loss, on_step=True, on_epoch=True, sync_dist=True)
@@ -229,13 +229,10 @@ class ComplexUNetLightning(pl.LightningModule):
             targets = targets.detach().cpu().to(torch.float32).numpy()
             outputs = outputs.detach().cpu().to(torch.float32).numpy()
             accuracy = self.acc.score(targets, outputs)
-            self.log('accuracy', float(accuracy), on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_accuracy', float(accuracy), on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
-            # Append the validation loss to the history
-            self.validation_loss_history.append(total_loss.item())
-            return {'val_loss': total_loss}
 
     def test_step(self, batch):
         """
@@ -257,20 +254,12 @@ class ComplexUNetLightning(pl.LightningModule):
             self.log('test_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
             self.log('test_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
-            self.log('accuracy', float(accuracy), sync_dist=True)
+            self.log('test_accuracy', float(accuracy), sync_dist=True)
             return {'test_loss': total_loss}
 
     def configure_optimizers(self):
         optimizer = torch.optim.RAdam(self.parameters(), lr=self.learning_rate)
         return optimizer
-
-    def on_train_epoch_end(self):
-        avg_loss = self.trainer.callback_metrics['Train_loss']
-        if isinstance(avg_loss, torch.Tensor):
-            avg_loss = avg_loss.cpu().item()
-
-        self.loss.append(avg_loss)
-        self.epochs.append(self.current_epoch)
 
     def process_epoch_end(self, num_images_to_plot: int,
                           save_dir: str) -> None:
@@ -304,13 +293,6 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def on_validation_epoch_end(self):
         with torch.no_grad():
-            avg_loss = self.trainer.callback_metrics['val_loss']
-            if isinstance(avg_loss, torch.Tensor):
-                avg_loss = avg_loss.cpu().numpy()
-
-            self.val_loss.append(avg_loss)
-            self.val_epochs.append(self.current_epoch)
-
             main_folder = self.image_folder_name
             sub_folder = f"{main_folder}/epoch_{self.current_epoch}"
             self.process_epoch_end(self.num_images_to_plot, sub_folder)
