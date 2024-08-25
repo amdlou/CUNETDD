@@ -189,13 +189,14 @@ class ParseDataset(Dataset):
             data_meas = torch.from_numpy(file['dataMeas'][..., idx])
             data_probe = torch.from_numpy(file['dataProbe'][...])
             data_pots = torch.from_numpy(file['dataPots'][..., idx])
+            data_pots = min_max_normalize(data_pots)
             #data_pots = torch.log(data_pots + 1e-6)
             #data_pots = filter_hot_pixels_pytorch(data_pots.unsqueeze(0), thresh=0.5, ind_compare=1).squeeze(0)
-
         cbed = data_meas.unsqueeze(0)
         probe = data_probe.unsqueeze(0)
         pot = data_pots.unsqueeze(0)
-
+        
+        self.augmenter.generate_params()
         cbed = self.augmenter.augment_img(cbed, probe)
         
         return (self._replace_nan(cbed), self._replace_nan(probe),

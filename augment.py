@@ -103,17 +103,17 @@ class Image_Augmentation(object):
 
     def set_params(
         self,
-        add_bkg: bool = False,
+        add_bkg: bool = True,
         bkg_weight: list[float] | float = [0.01, 0.1],
         bkg_q: list[float] | float = [0.01, 0.1],
-        add_shot: bool = False,
+        add_shot: bool = True,
         e_dose: list[float] | float = [1e5, 1e10],
-        add_shift: bool = False,
+        add_shift: bool = True,
         xshift: list[float] | float = [0, 10],
         yshift: list[float] | float = [0, 10],
-        add_ellipticity: bool = False,
+        add_ellipticity: bool = True,
         ellipticity_scale: list[float] | float = [0, 0.15],
-        add_salt_and_pepper: bool = False,
+        add_salt_and_pepper: bool = True,
         salt_and_pepper: list[float] | float = [0, 1e-3],
     ):
         """Set which augmentations to include and what the ranges of weight values will be used by
@@ -267,16 +267,22 @@ class Image_Augmentation(object):
         start_time = time.time()
         input_shape = inputs.shape
         noised = inputs
+        
+        # Randomly decide whether to apply each type of noise
+        apply_shot = self.add_shot and bool(np.random.choice([True, False]))
+        apply_elastic = (self.add_ellipticity or self.add_pattern_shift) and bool(np.random.choice([True, False]))
+        apply_salt_and_pepper = self.add_salt_and_pepper and bool(np.random.choice([True, False]))
+
         if self.add_bkg:
             noised = self._apply_bkg(inputs, probe)
 
-        if self.add_shot:
+        if apply_shot:
             noised = self._apply_shot(noised)
 
-        if self.add_ellipticity or self.add_pattern_shift:
+        if apply_elastic or self.add_pattern_shift:
             noised = self._apply_elastic(noised)
 
-        if self.add_salt_and_pepper:
+        if apply_salt_and_pepper:
             noised = self._apply_salt_and_pepper(noised)
 
         t = time.time() - start_time
