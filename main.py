@@ -19,8 +19,8 @@ accelerator is used to control the training process on cpu or gpu.
 
 from typing import List
 from argparse import Namespace
-import torch
 from pytorch_lightning.profilers import PyTorchProfiler
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -38,21 +38,22 @@ def configure_callbacks(params) -> List[Callback]:
     Returns:
         list: List of callbacks to be used during training.
     """
+
     early_stop = EarlyStopping(
-        monitor='Train_loss_2',
+        monitor='val_accuracy',
         min_delta=0.00,
-        patience=1000,
+        patience=100,
         verbose=True,
-        mode='min'
+        mode='max'
     )
 
     checkpoint = ModelCheckpoint(
-        monitor='Train_loss_2',
+        monitor='val_accuracy',
         dirpath=params.checkpoint_dir,
         filename='FCUnet-{epoch:02d}',
         save_top_k=1,
-        verbose=True,
-        mode='min'
+        verbose=False,
+        mode='max'
     )
     return [early_stop, checkpoint]
 
@@ -71,17 +72,21 @@ def create_model(params: Namespace) -> ComplexUNetLightning:
     model_params = {
         key: value for key, value in vars(params).items()
         if key not in [
-            'execution_mode', 'use_profiler', 'max_epochs', 'gpus',
+            'mode', 'use_profiler', 'max_epochs', 'gpus',
             'fast_dev_run', 'checkpoint_dir', 'checkpoint_pth',
-            'log_every_n_steps', 'sync_bnorm'
+            'log_every_n_steps', 'sync_bnorm', 'num_images_to_plot',
+            'check_val_every_n_epoch', 'precision', 'benchmark',
+            'deterministic', 'enable_progress_bar', 'limit_train_batches',
+            'gradient_clip_val', 'track_grad_norm', 'accelerator',
+            'accumulate_grad_batches','strategy', 'num_nodes',
+            'gradient_clip_algorithm'
         ]
     }
     if params.checkpoint_pth:
         return ComplexUNetLightning.load_from_checkpoint(
             checkpoint_path=params.checkpoint_pth, **model_params
         )
-    else:
-        return ComplexUNetLightning(**model_params)
+    return ComplexUNetLightning(**model_params)
 
 
 def main(params: Namespace) -> None:
@@ -94,43 +99,35 @@ def main(params: Namespace) -> None:
     Returns:
         None
     """
-
     model = create_model(params)
-    torch.compile(model)
-
     trainer = pl.Trainer(
         profiler=PyTorchProfiler(dirpath='./', filename='profiler_report')
         if params.use_profiler else None,
         max_epochs=params.max_epochs,
+        accumulate_grad_batches=params.accumulate_grad_batches,
         accelerator='cpu' if params.gpus is None else 'gpu',
-        enable_progress_bar=False,
+        devices=1 if params.gpus is None else params.gpus,
+        sync_batchnorm=False if params.gpus is None else params.sync_bnorm,
+        num_nodes=params.num_nodes,
         callbacks=configure_callbacks(params),
         fast_dev_run=params.fast_dev_run,
-        sync_batchnorm=params.sync_bnorm,
         log_every_n_steps=params.log_every_n_steps,
-        precision=16,
-        benchmark=True,
-        deterministic=False,
         check_val_every_n_epoch=params.check_val_every_n_epoch,
+        benchmark=params.benchmark,
+        gradient_clip_val=params.gradient_clip_val,
+        gradient_clip_algorithm=params.gradient_clip_algorithm,
+        deterministic=params.deterministic,
+        enable_progress_bar=params.enable_progress_bar,
+        limit_train_batches=params.limit_train_batches,
+        #strategy=params.strategy,
+        #precision=params.precision,
+        #track_grad_norm=params.track_grad_norm,
     )
 
     getattr(trainer, params.mode)(model)
-    if params.execution_mode == 'fit':
-        trainer.fit(model)
-    elif params.execution_mode == 'test':
-        model.setup('test')
-        trainer.test(model, dataloaders=model.test_dataloader())
 
 
 if __name__ == '__main__':
     args = get_args()
-    """
-   # the hyperparameters are loaded from a JSON or YAML file named config.json.
-
-if __name__ == '__main__':
-
-    with open('args.json', 'r', encoding='utf-8') as f:
-        args = json.load(f)
-"""
     hparams = Namespace(**args)
     main(hparams)
