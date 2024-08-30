@@ -53,7 +53,9 @@ def cross_correlate_fft(
     ccff = cbed_fft * torch.conj(probe_fft)
 
     # Normalize each cross-correlation
-    ccff_norm = torch.norm(ccff, dim=(-2, -1), keepdim=True)
+	
+    epsilon = 1e-8
+    ccff_norm = torch.norm(ccff, dim=(-2, -1), keepdim=True)  + epsilon
     ccff_normalized = ccff / ccff_norm
 
     # Split into real and imaginary parts
@@ -63,7 +65,6 @@ def cross_correlate_fft(
     ccff_combined = torch.cat([ccff_real, ccff_imag], dim=1)
 
     return ccff_combined
-
 
 def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
     """
@@ -79,7 +80,7 @@ def cross_correlate_ifft(x: torch.Tensor) -> torch.Tensor:
         torch.Tensor: Output tensor after performing
         cross-correlation using IFFT.
     """
-    x = x.to(torch.float32)  # Convert to float32 for torch.fft
+    #x = x.to(torch.float32)  # Convert to float32 for torch.fft
     input_channel = x.size(1) // 2
     input_complex = torch.complex(x[:, :input_channel, :, :],
                                   x[:, input_channel:, :, :])
@@ -154,7 +155,6 @@ class ConvComplex2D(nn.Module):
     """
     Convolutional layer for complex-valued inputs.
 
-
     Args:
         in_channels (int): Number of input channels.
         out_channels (int): Number of output channels.
@@ -200,11 +200,9 @@ class ConvComplex2D(nn.Module):
         # Split input tensor into real and imaginary parts
         # based on the channel dimension
         real_input, imag_input = torch.chunk(input_tensor, 2, dim=1)
-
         # Perform convolution on real and imaginary parts separately
         real_output = self.real_conv(real_input) - self.imag_conv(imag_input)
         imag_output = self.imag_conv(real_input) + self.real_conv(imag_input)
-
         # Concatenate the real and imaginary parts in the channel dimension
         # Now, both real and imaginary outputs have out_channels channels
         # doubling the output channels
@@ -280,16 +278,18 @@ class ConvSpec2D(nn.Module):
         in the convolutional layers.
         Defaults to True.
     """
-
     def __init__(self, in_channels: int, n_filters: int, n_depth: int = 1,
                  kernel_size: Union[int, Tuple[int, int]] = 3,
                  activation: Optional[type[nn.Module]] = nn.ReLU,
                  dp_rate: float = 0.1, batchnorm: bool = True,
                  bias: bool = True) -> None:
+
         super().__init__()
         self.layers = nn.ModuleList()
+        self.in_channels = in_channels
 
         for _ in range(n_depth):
+            
             conv_layer = ConvComplex2D(in_channels, n_filters, kernel_size,
                                        padding='same', bias=bias)
             self.layers.append(conv_layer)
