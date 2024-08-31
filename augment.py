@@ -1,6 +1,6 @@
 # Author: Joydeep Munshi
 # Augmentation utility funciton for crystal4D
-"""
+""" 
 This is augmentation pipeline for 4DSTEM/STEM diffraction (CBED) images.
 The different available augmentation includes elliptic distrotion, plasmonic background
 noise and poisson shot noise. The elliptic distortion is recommeded to be applied on
