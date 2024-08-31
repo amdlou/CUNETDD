@@ -67,7 +67,7 @@ class Image_Augmentation(object):
 
         # Check if the log file exists, if not, create it
         if not os.path.isfile(log_file):
-            with open(log_file, 'w', encoding='utf-8').close():
+            with open(log_file, 'w') as file:
                 pass
         self.device = device.lower()
         if self.device == "gpu":
