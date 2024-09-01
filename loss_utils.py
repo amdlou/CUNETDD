@@ -55,6 +55,5 @@ def custom_ssim_loss(
     BCE = F.binary_cross_entropy(outputs, targets, reduction='sum')
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     
-    total_loss = loss_1 + loss_2  # Combined loss
+    total_loss = KLD + BCE  # Combined loss
     return total_loss, loss_1, loss_2, BCE, KLD
-    #return total_loss, loss_1, loss_2, BCE, KLD
