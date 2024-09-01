@@ -152,7 +152,7 @@ class ComplexUNet(nn.Module):
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batchnorm: bool = True,
                  bias: bool = True,
-                 latent_dim: Optional[int] = 512) -> None:
+                 latent_dim: Optional[int] = 16) -> None:
 
         super().__init__()
         self.cross_correlate = cross_correlate_fft
@@ -185,8 +185,7 @@ class ComplexUNet(nn.Module):
             else:
                 upsample_channels = current_channels // 2
             if idx in range(1):
-                # The first decoder has the same number of
-                # input channels as the last encoder
+                # The first decoder has the same number of input channels as the last encoder
                 self.decoder.append(ConvSpec2D(current_channels,
                                                upsample_channels, n_depth,
                                                3, activation, dp_rate,
@@ -194,8 +193,7 @@ class ComplexUNet(nn.Module):
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
                                                       mode='bilinear'))
             else:
-                # The rest of the decoders have double
-                # the number of input channels
+                # The rest of the decoders have double the number of input channels
                 self.decoder.append(ConvSpec2D(current_channels*2,
                                                upsample_channels, n_depth,
                                                3, activation, dp_rate,
@@ -205,13 +203,14 @@ class ComplexUNet(nn.Module):
             self.attention_blocks.append(AttentionGate(current_channels, upsample_channels))
             current_channels = upsample_channels
             current_image_size *= 2
-                   
-        if latent_dim is not None:
-            self.out_channels = next_channels
-            self.latent_dim = latent_dim
-            self.fc_mu = nn.Linear(2048, latent_dim)
-            self.fc_logvar = nn.Linear(2048, latent_dim)
-            self.fc_decode = nn.Linear(latent_dim, 2*self.decoder[0].in_channels)
+            
+       
+        self.out_channels = next_channels
+        self.latent_dim = latent_dim
+        self.fc_mu = nn.Linear(1024, latent_dim)
+        self.fc_logvar = nn.Linear(1024, latent_dim)
+        self.fc_decode = nn.Linear(latent_dim, self.decoder[0].in_channels)
+
 
         self.additional_conv = ConvSpec2D(current_channels, filter_size, n_depth,
                                           3, activation, dp_rate,
@@ -240,30 +239,46 @@ class ComplexUNet(nn.Module):
         for i in range(0, len(self.encoder), 2):
             x = self.encoder[i](x)  # Convolution
             x = self.encoder[i + 1](x)  # Pooling
+            #print(f'Encoder {i}: {x.shape}')
             skips.append(x)
             # Calculate positional embeddings for each skip connection
             _, channels, _, _ = x.size()
             self.pos_embedding = RelativePositionalEmbedding(d_model=channels)
             pos_emb = self.pos_embedding(x)
             pos_embs.append(pos_emb)
-            
+
         # VAE in the bottleneck
-        if hasattr(self, 'latent_dim'):
-            mu = self.fc_mu(x.view(x.size(0), -1))
-            logvar = self.fc_logvar(x.view(x.size(0), -1))
-            std = torch.exp(0.5 * logvar)
-            eps = torch.randn_like(std)
-            z = mu + eps * std
-            x = self.fc_decode(z)
-            x = x.view(x.size(0), 2*self.decoder[0].in_channels, 1, 1)
-            x = F.interpolate(x, size=(2, 2))
+        x_real, x_imag = torch.chunk(x, 2, dim=1)
+        
+        mu_real = self.fc_mu(x_real.view(x_real.size(0), -1))
+        mu_imag = self.fc_mu(x_imag.view(x_imag.size(0), -1))
+        mu = torch.cat((mu_real, mu_imag), dim=1)
+ 
+        logvar_real = self.fc_logvar(x_real.view(x_real.size(0), -1))
+        logvar_imag = self.fc_logvar(x_imag.view(x_imag.size(0), -1))
+        logvar = torch.cat((logvar_real, logvar_imag), dim=1)
+
+        std_real = torch.exp(0.5 * logvar_real)
+        std_imag = torch.exp(0.5 * logvar_imag)
+
+        eps_real = torch.randn_like(std_real)
+        eps_imag = torch.randn_like(std_imag)
+
+        z_real = mu_real + eps_real * std_real
+        z_imag = mu_imag + eps_imag * std_imag
+
+        x_real = self.fc_decode(z_real)
+        x_imag = self.fc_decode(z_imag)
+        x = torch.cat((x_real, x_imag), dim=1)
+
+        x = x.view(x.size(0), 2*self.decoder[0].in_channels, 1, 1)
+        x = F.interpolate(x, size=(2, 2))
     
         skip_connection = skips.pop()  # Remove the last skip connection
         pos_emb = pos_embs.pop()  # Remove the last positional embedding
 
         # Decoder path
         for i in range(0, len(self.decoder) - 2, 2):
-
             x = self.decoder[i](x)  # Convolution
             x_u = self.decoder[i + 1](x)  # Upsampling
             skip_connection = skips.pop()  # Get the corresponding skip connection
