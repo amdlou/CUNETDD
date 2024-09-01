@@ -18,8 +18,11 @@ import torch.nn.functional as F
 def custom_ssim_loss(
     targets: torch.Tensor,
     outputs: torch.Tensor,
+    mu: torch.Tensor,
+    logvar: torch.Tensor,
     data_range: float = 1.0
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor
+           , torch.Tensor, torch.Tensor]:
     """
     custom_ssim_loss: Calculate the SSIM and MSE between
     the target and output images.
@@ -32,6 +35,7 @@ def custom_ssim_loss(
     Returns:
     - A tuple containing the total loss, SSIM loss, and MSE loss.
     """
+    
     # Assert that both targets and outputs are tensors
     assert isinstance(targets, torch.Tensor), "Expected 'targets' to be a PyTorch Tensor"
     assert isinstance(outputs, torch.Tensor), "Expected 'outputs' to be a PyTorch Tensor"
@@ -44,6 +48,12 @@ def custom_ssim_loss(
     # Calculate losses
     loss_1 = 1 - ssim_val  # SSIM loss component
     loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
-    total_loss = loss_1 + loss_2  # Combined loss
-
-    return total_loss, loss_1, loss_2
+    
+    # Apply sigmoid to outputs
+    outputs = torch.sigmoid(outputs)
+    # Calculate BCE and KLD
+    BCE = F.binary_cross_entropy(outputs, targets, reduction='sum')
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    
+    total_loss = KLD + BCE  # Combined loss
+    return total_loss, loss_1, loss_2, BCE, KLD
