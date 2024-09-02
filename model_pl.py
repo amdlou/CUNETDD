@@ -235,6 +235,7 @@ class ComplexUNetLightning(pl.LightningModule):
             self.log('val_ssim_loss', ssim_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_KLD_loss', KLD_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.log('val_total_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            return {'val_accuracy': accuracy}
 
     def test_step(self, batch):
         """
@@ -262,7 +263,28 @@ class ComplexUNetLightning(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.RAdam(self.parameters(), lr=self.learning_rate)
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='max',   # Defines whether the monitored metric should be minimized or maximized.
+            factor=0.5,   # The factor by which the learning rate will be reduced. new_lr = lr * factor.
+            patience=2,  # Number of epochs with no improvement after which learning rate will be reduced.
+            verbose=True,  # If True, prints a message to stdout for each update.
+            threshold=0.0001,  # Threshold for measuring the new optimum, to only focus on significant changes.
+            threshold_mode='rel',  # In 'rel' mode, dynamic_threshold = best * (1 +/- threshold) for 'min' and 'max' respectively.
+            cooldown=0,   # Number of epochs to wait before resuming normal operation after lr has been reduced.
+            min_lr=0,     # A lower bound on the learning rate of all param groups or each group respectively.
+            eps=1e-08,     # Minimal decay applied to lr. If the difference between new and old lr is smaller than eps, the update is ignored.
+
+        )
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+            'scheduler': scheduler,
+            'interval':'epoch',
+            'frequency': 5,  # Frequency of checks
+            'monitor': 'val_accurancy',  # Metric to monitor
+        }}
 
     def process_epoch_end(self, num_images_to_plot: int,
                           save_dir: str) -> None:
