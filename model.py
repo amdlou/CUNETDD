@@ -207,8 +207,10 @@ class ComplexUNet(nn.Module):
        
         self.out_channels = next_channels
         self.latent_dim = latent_dim
-        self.fc_mu = nn.Linear(1024, latent_dim)
-        self.fc_logvar = nn.Linear(1024, latent_dim)
+        self.fc_mu_imag = nn.Linear(1024, latent_dim)
+        self.fc_mu_real = nn.Linear(1024, latent_dim)
+        self.fc_logvar_real = nn.Linear(1024, latent_dim)
+        self.fc_logvar_imag = nn.Linear(1024, latent_dim)
         self.fc_decode = nn.Linear(latent_dim, self.decoder[0].in_channels)
 
 
@@ -239,7 +241,6 @@ class ComplexUNet(nn.Module):
         for i in range(0, len(self.encoder), 2):
             x = self.encoder[i](x)  # Convolution
             x = self.encoder[i + 1](x)  # Pooling
-            #print(f'Encoder {i}: {x.shape}')
             skips.append(x)
             # Calculate positional embeddings for each skip connection
             _, channels, _, _ = x.size()
@@ -250,12 +251,12 @@ class ComplexUNet(nn.Module):
         # VAE in the bottleneck
         x_real, x_imag = torch.chunk(x, 2, dim=1)
         
-        mu_real = self.fc_mu(x_real.view(x_real.size(0), -1))
-        mu_imag = self.fc_mu(x_imag.view(x_imag.size(0), -1))
+        mu_real = self.fc_mu_real(x_real.view(x_real.size(0), -1))
+        mu_imag = self.fc_mu_imag(x_imag.view(x_imag.size(0), -1))
         mu = torch.cat((mu_real, mu_imag), dim=1)
  
-        logvar_real = self.fc_logvar(x_real.view(x_real.size(0), -1))
-        logvar_imag = self.fc_logvar(x_imag.view(x_imag.size(0), -1))
+        logvar_real = self.fc_logvar_real(x_real.view(x_real.size(0), -1))
+        logvar_imag = self.fc_logvar_imag(x_imag.view(x_imag.size(0), -1))
         logvar = torch.cat((logvar_real, logvar_imag), dim=1)
 
         std_real = torch.exp(0.5 * logvar_real)
