@@ -46,14 +46,11 @@ def custom_ssim_loss(
     # Calculate SSIM
     ssim_val = ssim(targets, outputs, data_range=data_range)
     # Calculate losses
-    loss_1 = 1 - ssim_val  # SSIM loss component
-    loss_2 = F.mse_loss(targets, outputs)  # MSE loss component
+    ssim_loss = 1 - ssim_val  # SSIM loss component
+    mse_loss = F.mse_loss(targets, outputs)  # MSE loss component
     
-    # Apply sigmoid to outputs
-    outputs = torch.sigmoid(outputs)
-    # Calculate BCE and KLD
-    BCE = F.binary_cross_entropy(outputs, targets, reduction='sum')
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    # Calculate KLD
+    KLD_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     
-    total_loss = KLD + BCE  # Combined loss
-    return total_loss, loss_1, loss_2, BCE, KLD
+    total_loss = KLD_loss + 313*mse_loss  # Combined loss
+    return total_loss, mse_loss, ssim_loss, KLD_loss
