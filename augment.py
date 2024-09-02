@@ -101,10 +101,10 @@ class Image_Augmentation(object):
         self.verbose = verbose
         self.log_file = log_file
 
-        with open(self.log_file, "a") as f:
-            f.write(
-                f"bkg_weight,bkg_q,e_dose,xshift,yshift,exx,eyy,exy,salt_and_pepper,rng_seed\n"
-            )
+#        with open(self.log_file, "a") as f:
+#            f.write(
+#                f"bkg_weight,bkg_q,e_dose,xshift,yshift,exx,eyy,exy,salt_and_pepper,rng_seed\n"
+#            )
 
     def set_params(
         self,
@@ -292,13 +292,13 @@ class Image_Augmentation(object):
 
         t = time.time() - start_time
 
-        if self.verbose:
-            self.print_params()
-            print(
-                f"Augmentation Status: it took {t/60:.1e} minutes to augment "
-                + f"{input_shape[0]} images."
-            )
-        self.write_logs()
+#        if self.verbose:
+#            self.print_params()
+#            print(
+#                f"Augmentation Status: it took {t/60:.1e} minutes to augment "
+#                + f"{input_shape[0]} images."
+#            )
+#        self.write_logs()
 
         return noised
 
@@ -422,12 +422,12 @@ class Image_Augmentation(object):
         out[flipped & peppered] = pepper_val
         return out
 
-    def write_logs(self):
-        with open(self.log_file, "a") as f:
-            f.write(
-                f"{self.bkg_weight},{self.bkg_q},{self.e_dose},{self.xshift},{self.yshift},"
-                + f"{self.exx},{self.eyy},{self.exy},{self.salt_and_pepper},{self._rng_seed}\n"
-            )
+#    def write_logs(self):
+#        with open(self.log_file, "a") as f:
+#            f.write(
+#                f"{self.bkg_weight},{self.bkg_q},{self.e_dose},{self.xshift},{self.yshift},"
+#                + f"{self.exx},{self.eyy},{self.exy},{self.salt_and_pepper},{self._rng_seed}\n"
+#            )
 
     @staticmethod
     def _check_input(inp):
