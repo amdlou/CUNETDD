@@ -1,3 +1,4 @@
+ 
 """FCU_net model implementation.
    Disentangling multiple scattering with deep learning:
    application to strain mapping from electron diffraction patterns
@@ -140,8 +141,21 @@ class RelativePositionalEmbedding(nn.Module):
         S = S_height + S_width
         return S
 
-
 class ComplexUNet(nn.Module):
+    """
+    ComplexUNet model implementation.
+
+    Args:
+        input_channel (int): Number of input channels.
+        image_size (int): Size of the input image.
+        filter_size (int): Size of the filters in the model.
+        n_depth (int): Number of convolutional layers in each block.
+        dp_rate (float, optional): Dropout rate. Defaults to 0.1.
+        activation (torch.nn.Module, optional): Activation function.
+        batchnorm (bool, optional): Whether to use batch normalization.
+        bias (bool, optional): Whether to include
+        bias in the convolutional layers.
+    """
 
     def __init__(self,
                  input_channel: int,
@@ -151,29 +165,30 @@ class ComplexUNet(nn.Module):
                  dp_rate: float = 0.1,
                  activation: Optional[Type[nn.Module]] = nn.ReLU,
                  batchnorm: bool = True,
-                 bias: bool = True,
-                 latent_dim: Optional[int] = 16) -> None:
+                 bias: bool = True) -> None:
 
         super().__init__()
+        max_channels = 256
+        current_channels = filter_size
+        current_image_size = image_size
         self.cross_correlate = cross_correlate_fft
         self.inverse_fft = cross_correlate_ifft
-        self.initial_conv = ConvSpec2D(input_channel, filter_size, n_depth,
-                                       3, activation, dp_rate,
+        self.initial_conv = ConvSpec2D(input_channel, filter_size,
+                                       n_depth, 3, activation, dp_rate,
                                        bias, batchnorm)
         self.encoder = nn.ModuleList()
         self.decoder = nn.ModuleList()
-        self.pos_embedding = RelativePositionalEmbedding(d_model=512)
+        self.pos_embedding = RelativePositionalEmbedding(d_model=256)
         self.attention_blocks = nn.ModuleList()
-        current_channels = filter_size
-        max_channels = 256
-        current_image_size = image_size
-        
+
+
         # Encoder - Convolution followed by Pooling
         for _ in range(int(np.log2(image_size)) - 1):
+            self.attention_blocks = nn.ModuleList()
             next_channels = min(current_channels * 2, max_channels)
-            self.encoder.append(ConvSpec2D(current_channels, next_channels, n_depth,
-                                           3, activation, dp_rate, bias,
-                                           batchnorm))
+            self.encoder.append(ConvSpec2D(current_channels, next_channels,
+                                           n_depth, 3, activation, dp_rate,
+                                           bias, batchnorm))
             self.encoder.append(nn.MaxPool2d(kernel_size=2, stride=2))
             current_channels = next_channels
             current_image_size //= 2
@@ -184,36 +199,30 @@ class ComplexUNet(nn.Module):
                 upsample_channels = max_channels
             else:
                 upsample_channels = current_channels // 2
-            if idx in range(1):
-                # The first decoder has the same number of input channels as the last encoder
+            if idx == 0:
+                # The first decoder has the same number of
+                # input channels as the last encoder
                 self.decoder.append(ConvSpec2D(current_channels,
-                                               upsample_channels, n_depth,
-                                               3, activation, dp_rate,
+                                               upsample_channels,
+                                               n_depth, 3, activation, dp_rate,
                                                bias, batchnorm))
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
                                                       mode='bilinear'))
             else:
-                # The rest of the decoders have double the number of input channels
+                # The rest of the decoders have double
+                # the number of input channels
                 self.decoder.append(ConvSpec2D(current_channels*2,
-                                               upsample_channels, n_depth,
-                                               3, activation, dp_rate,
+                                               upsample_channels,
+                                               n_depth, 3, activation, dp_rate,
                                                bias, batchnorm))
                 self.decoder.append(ComplexUpsample2d(scale_factor=2,
                                                       mode='bilinear'))
             self.attention_blocks.append(AttentionGate(current_channels, upsample_channels))
             current_channels = upsample_channels
             current_image_size *= 2
-            
-       
-        self.out_channels = next_channels
-        self.latent_dim = latent_dim
-        self.fc_mu = nn.Linear(1024, latent_dim)
-        self.fc_logvar = nn.Linear(1024, latent_dim)
-        self.fc_decode = nn.Linear(latent_dim, self.decoder[0].in_channels)
 
-
-        self.additional_conv = ConvSpec2D(current_channels, filter_size, n_depth,
-                                          3, activation, dp_rate,
+        self.additional_conv = ConvSpec2D(current_channels, filter_size,
+                                          n_depth, 3, activation, dp_rate,
                                           bias, batchnorm)
         self.conv2d = Conv2D(filter_size, filter_size, n_depth, 3, activation,
                              dp_rate, batchnorm)
@@ -225,12 +234,23 @@ class ComplexUNet(nn.Module):
     def forward(self,
                 inputsa: torch.Tensor,
                 inputsb: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the CUNETD model.
+
+        Args:
+            inputsa (torch.Tensor): Input tensor A CBED patterns tensor.
+            inputsb (torch.Tensor): Input tensor B Probe patterns tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after passing through the CUNETD model.
+        """
         device = inputsa.device  # Get the device of the input tensors
         inputsa = inputsa.to(device)  # Ensure inputsa is on the correct device
         inputsb = inputsb.to(device)  # Ensure inputsb is on the correct device
 
         x = self.cross_correlate(inputsa, inputsb)
         x = self.initial_conv(x)
+
         skips = []
         pos_embs = []
 
@@ -239,7 +259,6 @@ class ComplexUNet(nn.Module):
         for i in range(0, len(self.encoder), 2):
             x = self.encoder[i](x)  # Convolution
             x = self.encoder[i + 1](x)  # Pooling
-            #print(f'Encoder {i}: {x.shape}')
             skips.append(x)
             # Calculate positional embeddings for each skip connection
             _, channels, _, _ = x.size()
@@ -247,41 +266,15 @@ class ComplexUNet(nn.Module):
             pos_emb = self.pos_embedding(x)
             pos_embs.append(pos_emb)
 
-        # VAE in the bottleneck
-        x_real, x_imag = torch.chunk(x, 2, dim=1)
-        
-        mu_real = self.fc_mu(x_real.view(x_real.size(0), -1))
-        mu_imag = self.fc_mu(x_imag.view(x_imag.size(0), -1))
-        mu = torch.cat((mu_real, mu_imag), dim=1)
- 
-        logvar_real = self.fc_logvar(x_real.view(x_real.size(0), -1))
-        logvar_imag = self.fc_logvar(x_imag.view(x_imag.size(0), -1))
-        logvar = torch.cat((logvar_real, logvar_imag), dim=1)
-
-        std_real = torch.exp(0.5 * logvar_real)
-        std_imag = torch.exp(0.5 * logvar_imag)
-
-        eps_real = torch.randn_like(std_real)
-        eps_imag = torch.randn_like(std_imag)
-
-        z_real = mu_real + eps_real * std_real
-        z_imag = mu_imag + eps_imag * std_imag
-
-        x_real = self.fc_decode(z_real)
-        x_imag = self.fc_decode(z_imag)
-        x = torch.cat((x_real, x_imag), dim=1)
-
-        x = x.view(x.size(0), 2*self.decoder[0].in_channels, 1, 1)
-        x = F.interpolate(x, size=(2, 2))
-    
         skip_connection = skips.pop()  # Remove the last skip connection
         pos_emb = pos_embs.pop()  # Remove the last positional embedding
 
         # Decoder path
         for i in range(0, len(self.decoder) - 2, 2):
+            # Exclude the last upsample for now
             x = self.decoder[i](x)  # Convolution
             x_u = self.decoder[i + 1](x)  # Upsampling
-            skip_connection = skips.pop()  # Get the corresponding skip connection
+            skip_connection = skips.pop()
             pos_emb = pos_embs.pop()  # Get the corresponding positional embedding
             x = self.attention_blocks[i // 2](x_u + pos_emb, skip_connection + pos_emb)
             x = torch.cat((x, x_u), dim=1)
@@ -293,5 +286,6 @@ class ComplexUNet(nn.Module):
         x = self.conv2d(x)
         x = self.final_conv(x)
         x = self.actv(x)
-       
-        return x, mu, logvar
+        return x
+        
+        
