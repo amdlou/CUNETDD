@@ -119,7 +119,7 @@ def main(params: Namespace) -> None:
         deterministic=params.deterministic,
         enable_progress_bar=params.enable_progress_bar,
         limit_train_batches=params.limit_train_batches,
-        #strategy=params.strategy,
+        strategy=params.strategy,
         #precision=params.precision,
         #track_grad_norm=params.track_grad_norm,
     )
