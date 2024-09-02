@@ -187,14 +187,15 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         inputs_cb, inputs_pr, targets = batch
         outputs, mu, logvar = self(inputs_cb, inputs_pr)
-        total_loss, loss_1, loss_2, BCE, KLD = self.loss_fn(targets, outputs, mu, logvar)
+        total_loss, mse_loss, ssim_loss, KLD_loss = self.loss_fn(targets, outputs, mu, logvar)
         targets = targets.detach().cpu().to(torch.float32).numpy()
         outputs = outputs.detach().cpu().to(torch.float32).numpy()
         accuracy = self.acc.score(targets, outputs)
         self.log('train_accuracy', float(accuracy), on_step=False, on_epoch=True, sync_dist=True)
-        self.log('Train_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
-        self.log('Train_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
-        self.log('Train_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_mse_loss', mse_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_ssim_loss', ssim_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_KLD_loss', KLD_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_total_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
         return {'loss': total_loss}
 
     def on_validation_epoch_start(self):
@@ -224,15 +225,16 @@ class ComplexUNetLightning(pl.LightningModule):
 
         with torch.no_grad():
             outputs, mu, logvar = self(inputs_cb, inputs_pr)
-            total_loss, loss_1, loss_2, BCE, KLD = self.loss_fn(targets, outputs, mu, logvar)
+            total_loss, mse_loss, ssim_loss, KLD_loss = self.loss_fn(targets, outputs, mu, logvar)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
             targets = targets.detach().cpu().to(torch.float32).numpy()
             outputs = outputs.detach().cpu().to(torch.float32).numpy()
             accuracy = self.acc.score(targets, outputs)
             self.log('val_accuracy', float(accuracy), on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_mse_loss', mse_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_ssim_loss', ssim_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_KLD_loss', KLD_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_total_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
 
     def test_step(self, batch):
         """
@@ -248,14 +250,15 @@ class ComplexUNetLightning(pl.LightningModule):
         with torch.no_grad():
             inputs_cb, inputs_pr, targets = batch
             outputs, mu, logvar = self(inputs_cb, inputs_pr)
-            total_loss, loss_1, loss_2, BCE, KLD = self.loss_fn(targets, outputs, mu, logvar)
-            accuracy = self.acc.score(targets, outputs)
-            self.log('test_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('test_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('test_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
+            total_loss, mse_loss, ssim_loss, KLD_loss = self.loss_fn(targets, outputs, mu, logvar)
+            accuracy = self.acc.score(targets, outputs)
+            self.log('test_mse_loss', mse_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_ssim_loss', ssim_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_total_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_KLD_loss', KLD_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.log('test_accuracy', float(accuracy), sync_dist=True)
-            return {'test_loss': total_loss}
+            return {'test_total_loss': total_loss}
 
     def configure_optimizers(self):
         optimizer = torch.optim.RAdam(self.parameters(), lr=self.learning_rate)
