@@ -267,8 +267,8 @@ class ComplexUNetLightning(pl.LightningModule):
             optimizer,
             mode='max',   # Defines whether the monitored metric should be minimized or maximized.
             factor=0.5,   # The factor by which the learning rate will be reduced. new_lr = lr * factor.
-            patience=2,  # Number of epochs with no improvement after which learning rate will be reduced.
-            verbose=True,  # If True, prints a message to stdout for each update.
+            patience=5,  # Number of epochs with no improvement after which learning rate will be reduced.
+            verbose=False,  # If True, prints a message to stdout for each update.
             threshold=0.0001,  # Threshold for measuring the new optimum, to only focus on significant changes.
             threshold_mode='rel',  # In 'rel' mode, dynamic_threshold = best * (1 +/- threshold) for 'min' and 'max' respectively.
             cooldown=0,   # Number of epochs to wait before resuming normal operation after lr has been reduced.
@@ -276,15 +276,19 @@ class ComplexUNetLightning(pl.LightningModule):
             eps=1e-08,     # Minimal decay applied to lr. If the difference between new and old lr is smaller than eps, the update is ignored.
 
         )
+        lr = optimizer.param_groups[0]['lr']  # Get the current learning rate
+        print(f"Current learning rate: {lr}")
 
         return {
             'optimizer': optimizer,
             'lr_scheduler': {
-            'scheduler': scheduler,
-            'interval':'epoch',
-            'frequency': 5,  # Frequency of checks
-            'monitor': 'val_accurancy',  # Metric to monitor
-        }}
+                'scheduler': scheduler,
+                'interval':'epoch',
+                'frequency': 5,  # Frequency of checks
+                'monitor': 'val_accuracy',  # Metric to monitor
+                'strict': True,
+                }
+        }
 
     def process_epoch_end(self, num_images_to_plot: int,
                           save_dir: str) -> None:
