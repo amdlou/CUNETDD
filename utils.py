@@ -125,16 +125,19 @@ class Conv2D(nn.Module):
         self.activation = activation
         self.dp_rate = dp_rate
         self.batchnorm = batchnorm
-
         self.layers = nn.ModuleList()
         for _ in range(n_depth):
-            self.layers.append(nn.Conv2d(in_channels, n_filters, kernel_size,
-                                         padding='same', bias=True))
+            conv_layer = nn.Conv2d(in_channels, n_filters, kernel_size,
+                                   padding='same', bias=True)
+            nn.init.kaiming_normal_(conv_layer.weight, mode='fan_out',
+                                    nonlinearity='relu')
+            self.layers.append(conv_layer)
             if batchnorm:
                 self.layers.append(nn.BatchNorm2d(n_filters))
             if activation is not None:
                 self.layers.append(activation())
-            self.layers.append(nn.Dropout(dp_rate))
+            if dp_rate > 0.0:
+                self.layers.append(nn.Dropout(dp_rate))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -180,7 +183,12 @@ class ConvComplex2D(nn.Module):
                                    stride, padding, dilation, groups, bias)
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size,
                                    stride, padding, dilation, groups, bias)
-
+        # Initialize weight attribute
+        nn.init.kaiming_normal_(self.real_conv.weight, mode='fan_out',
+                                nonlinearity='relu')
+        nn.init.kaiming_normal_(self.imag_conv.weight, mode='fan_out',
+                                nonlinearity='relu')
+        
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the complex-valued convolutional layer.
