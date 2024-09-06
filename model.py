@@ -203,17 +203,16 @@ class ComplexUNet(nn.Module):
             self.attention_blocks.append(AttentionGate(current_channels, upsample_channels))
             current_channels = upsample_channels
             current_image_size *= 2
-            
-       
+        
         self.out_channels = next_channels
         self.latent_dim = latent_dim
         self.fc_mu_imag = nn.Linear(1024, latent_dim)
         self.fc_mu_real = nn.Linear(1024, latent_dim)
         self.fc_logvar_real = nn.Linear(1024, latent_dim)
         self.fc_logvar_imag = nn.Linear(1024, latent_dim)
-        self.fc_decode = nn.Linear(latent_dim, self.decoder[0].in_channels)
-
-
+        self.fc_decode_imag = nn.Linear(latent_dim, self.decoder[0].in_channels)
+        self.fc_decode_real = nn.Linear(latent_dim, self.decoder[0].in_channels)
+        
         self.additional_conv = ConvSpec2D(current_channels, filter_size, n_depth,
                                           3, activation, dp_rate,
                                           bias, batchnorm)
@@ -268,12 +267,15 @@ class ComplexUNet(nn.Module):
         z_real = mu_real + eps_real * std_real
         z_imag = mu_imag + eps_imag * std_imag
 
-        x_real = self.fc_decode(z_real)
-        x_imag = self.fc_decode(z_imag)
+        x_real = self.fc_decode_imag(z_real)
+        x_imag = self.fc_decode_real(z_imag)
+        
+        x_real = x_real.view(x_real.size(0), self.decoder[0].in_channels, 1, 1)
+        x_imag = x_imag.view(x_imag.size(0), self.decoder[0].in_channels, 1, 1)
+        
+        x_real = F.interpolate(x_real, size=(2, 2))
+        x_imag = F.interpolate(x_imag, size=(2, 2))
         x = torch.cat((x_real, x_imag), dim=1)
-
-        x = x.view(x.size(0), 2*self.decoder[0].in_channels, 1, 1)
-        x = F.interpolate(x, size=(2, 2))
     
         skip_connection = skips.pop()  # Remove the last skip connection
         pos_emb = pos_embs.pop()  # Remove the last positional embedding
