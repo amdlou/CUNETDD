@@ -22,7 +22,6 @@ from loss_utils import custom_ssim_loss
 from data_utils import ParseDataset
 from py4dstem_utils import acc
 
-
 # Define MAX_SAMPLES
 MAX_SAMPLES = 1000
 
@@ -187,15 +186,19 @@ class ComplexUNetLightning(pl.LightningModule):
             Dict[str, torch.Tensor]: A dictionary containing the loss value.
         """
         inputs_cb, inputs_pr, targets = batch
-        outputs = self(inputs_cb, inputs_pr)
-        total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+        outputs, mu, logvar = self(inputs_cb, inputs_pr)
+        total_loss, mse_loss, ssim_loss, KLD_loss = self.loss_fn(targets, outputs, mu, logvar)
         targets = targets.detach().cpu().to(torch.float32).numpy()
         outputs = outputs.detach().cpu().to(torch.float32).numpy()
+        print(targets[3 , 0, :, :])
+        print(outputs.shape)
+        print(outputs[3 , 0, :, :]) 
         accuracy = self.acc.score(targets, outputs)
-        self.log('train_accuracy', float(accuracy), on_step=True, on_epoch=True, sync_dist=True)
-        self.log('Train_loss_1', loss_1, on_step=True, on_epoch=True, sync_dist=True)
-        self.log('Train_loss_2', loss_2, on_step=True, on_epoch=True, sync_dist=True)
-        self.log('Train_loss', total_loss, on_step=True, on_epoch=True, sync_dist=True)
+        self.log('train_accuracy', float(accuracy), on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_mse_loss', mse_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_ssim_loss', ssim_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_KLD_loss', KLD_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('Train_total_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
         return {'loss': total_loss}
 
     def on_validation_epoch_start(self):
@@ -222,17 +225,20 @@ class ComplexUNetLightning(pl.LightningModule):
             the validation loss value.
         """
         inputs_cb, inputs_pr, targets = batch
+
         with torch.no_grad():
-            outputs = self(inputs_cb, inputs_pr)
-            total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
+            outputs, mu, logvar = self(inputs_cb, inputs_pr)
+            total_loss, mse_loss, ssim_loss, KLD_loss = self.loss_fn(targets, outputs, mu, logvar)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
             targets = targets.detach().cpu().to(torch.float32).numpy()
             outputs = outputs.detach().cpu().to(torch.float32).numpy()
             accuracy = self.acc.score(targets, outputs)
             self.log('val_accuracy', float(accuracy), on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_mse_loss', mse_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_ssim_loss', ssim_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_KLD_loss', KLD_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('val_total_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            return {'val_accuracy': accuracy}
 
     def test_step(self, batch):
         """
@@ -247,19 +253,45 @@ class ComplexUNetLightning(pl.LightningModule):
         """
         with torch.no_grad():
             inputs_cb, inputs_pr, targets = batch
-            outputs = self(inputs_cb, inputs_pr)
-            total_loss, loss_1, loss_2 = self.loss_fn(targets, outputs)
-            accuracy = self.acc.score(targets, outputs)
-            self.log('test_loss_1', loss_1, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('test_loss_2', loss_2, on_step=False, on_epoch=True, sync_dist=True)
-            self.log('test_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            outputs, mu, logvar = self(inputs_cb, inputs_pr)
             self.collect_samples(targets, outputs, MAX_SAMPLES)
+            total_loss, mse_loss, ssim_loss, KLD_loss = self.loss_fn(targets, outputs, mu, logvar)
+            accuracy = self.acc.score(targets, outputs)
+            self.log('test_mse_loss', mse_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_ssim_loss', ssim_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_total_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+            self.log('test_KLD_loss', KLD_loss, on_step=False, on_epoch=True, sync_dist=True)
             self.log('test_accuracy', float(accuracy), sync_dist=True)
-            return {'test_loss': total_loss}
+            return {'test_total_loss': total_loss}
 
     def configure_optimizers(self):
         optimizer = torch.optim.RAdam(self.parameters(), lr=self.learning_rate)
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='max',   # Defines whether the monitored metric should be minimized or maximized.
+            factor=0.5,   # The factor by which the learning rate will be reduced. new_lr = lr * factor.
+            patience=5,  # Number of epochs with no improvement after which learning rate will be reduced.
+            verbose=False,  # If True, prints a message to stdout for each update.
+            threshold=0.0001,  # Threshold for measuring the new optimum, to only focus on significant changes.
+            threshold_mode='rel',  # In 'rel' mode, dynamic_threshold = best * (1 +/- threshold) for 'min' and 'max' respectively.
+            cooldown=0,   # Number of epochs to wait before resuming normal operation after lr has been reduced.
+            min_lr=0,     # A lower bound on the learning rate of all param groups or each group respectively.
+            eps=1e-08,     # Minimal decay applied to lr. If the difference between new and old lr is smaller than eps, the update is ignored.
+
+        )
+        lr = optimizer.param_groups[0]['lr']  # Get the current learning rate
+        print(f"Current learning rate: {lr}")
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'interval':'epoch',
+                'frequency': 5,  # Frequency of checks
+                'monitor': 'val_accuracy',  # Metric to monitor
+                'strict': True,
+                }
+        }
 
     def process_epoch_end(self, num_images_to_plot: int,
                           save_dir: str) -> None:
