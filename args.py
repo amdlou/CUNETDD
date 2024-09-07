@@ -43,7 +43,7 @@ def get_args() -> Dict[str, Any]:
         # #### Trainer arguments#####
         'num_nodes': parsed_args.num_nodes,  # Use the parsed num_nodes
         'gpus': -1,  # Set to None for CPU
-        'strategy': 'ddp',  # Set the strategy for distributed training
+        'strategy': 'ddp_find_unused_parameters_true',  # Set the strategy for distributed training
         'mode': 'fit',  # Set to 'fit' for training, 'test' for testing
         'max_epochs': 200,  # Set the maximum number of epochs
         'accumulate_grad_batches': 16,  # Set the number of batches to accumulate
