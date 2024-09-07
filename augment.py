@@ -62,13 +62,7 @@ class Image_Augmentation(object):
             magnify_only (bool, optional): If True forces exx and eyy <= 1, this prevents artifacts
                 that arise from output images smaller than input. Defaults to True.
         """
-        # Create the directory for the log file if it doesn't exist
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
-        # Check if the log file exists, if not, create it
-        if not os.path.isfile(log_file):
-            with open(log_file, 'w') as file:
-                pass
         self.device = device.lower()
         if self.device == "gpu":
             self._xp = cp
