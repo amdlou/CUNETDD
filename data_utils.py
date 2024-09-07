@@ -177,7 +177,9 @@ class ParseDataset(Dataset):
 
     def _replace_nan(self, tensor: torch.Tensor) -> torch.Tensor:
         """Replaces NaN values in a tensor with zeros."""
-        return np.nan_to_num(tensor)
+        if torch.isnan(tensor).any():
+            return torch.nan_to_num(tensor)
+        return tensor
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor,
                                              torch.Tensor, torch.Tensor]:
@@ -189,7 +191,7 @@ class ParseDataset(Dataset):
             data_meas = torch.from_numpy(file['dataMeas'][..., idx])
             data_probe = torch.from_numpy(file['dataProbe'][...])
             data_pots = torch.from_numpy(file['dataPots'][..., idx])
-
+         
         cbed = data_meas.unsqueeze(0)
         probe = data_probe.unsqueeze(0)
         pot = data_pots.unsqueeze(0)
